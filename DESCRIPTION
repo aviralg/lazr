@@ -1,0 +1,26 @@
+Package: strictr
+Title: Strictness Analysis for R
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Aviral",
+           family = "Goel",
+           role = c("aut", "cre"),
+           email = "aviral@aviral.io",
+           comment = c(ORCID = "0000-0002-0814-5015"))
+Description: This package generates laziness signatures for R functions
+             from dynamically generated traces.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    instrumentr,
+    fst,
+    purrr
+Remotes:
+    PRL-PRG/instrumentr
+LinkingTo:
+    instrumentr
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Suggests: 
+    testthat
