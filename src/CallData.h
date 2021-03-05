@@ -33,15 +33,15 @@ class CallData {
     }
 
     SEXP to_sexp() {
-        std::vector<SEXP> columns({integer_vector_wrap(call_id_seq_),
-                                   character_vector_wrap(package_name_seq_),
-                                   character_vector_wrap(function_name_seq_),
-                                   character_vector_wrap(result_type_seq_),
-                                   character_vector_wrap(force_order_seq_),
-                                   integer_vector_wrap(c_call_count_seq_),
-                                   integer_vector_wrap(r_call_count_seq_),
-                                   real_vector_wrap(c_execution_time_seq_),
-                                   real_vector_wrap(r_execution_time_seq_)});
+        std::vector<SEXP> columns({PROTECT(integer_vector_wrap(call_id_seq_)),
+                PROTECT(character_vector_wrap(package_name_seq_)),
+                PROTECT(character_vector_wrap(function_name_seq_)),
+                PROTECT(character_vector_wrap(result_type_seq_)),
+                PROTECT(character_vector_wrap(force_order_seq_)),
+                    PROTECT(integer_vector_wrap(c_call_count_seq_)),
+                    PROTECT(integer_vector_wrap(r_call_count_seq_)),
+                    PROTECT(real_vector_wrap(c_execution_time_seq_)),
+                    PROTECT(real_vector_wrap(r_execution_time_seq_))});
 
         std::vector<std::string> names({"call_id",
                                         "package_name",
@@ -53,7 +53,11 @@ class CallData {
                                         "c_execution_time",
                                         "r_execution_time"});
 
-        return create_data_frame(names, columns);
+        SEXP df = create_data_frame(names, columns);
+
+        UNPROTECT(9);
+
+        return df;
     }
 
   private:

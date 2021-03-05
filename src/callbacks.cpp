@@ -13,29 +13,6 @@ std::string get_sexp_type(SEXP r_value) {
     }
 }
 
-void get_argument_type(instrumentr_argument_t argument,
-                       std::string& expression_type,
-                       std::string& value_type) {
-    if(instrumentr_argument_is_value(argument)) {
-        instrumentr_value_t value = instrumentr_argument_as_value(argument);
-        expression_type = STRICTR_NA_STRING;
-        value_type = get_sexp_type(instrumentr_value_get_sexp(value));
-    }
-    /* if not a value, it has to be a promise */
-    else {
-        instrumentr_promise_t promise = instrumentr_argument_as_promise(argument);
-        if (instrumentr_promise_is_forced(promise)) {
-            value_type = STRICTR_NA_STRING;
-        }
-        else {
-            value_type = get_sexp_type(instrumentr_promise_get_value(promise));
-        }
-        expression_type = get_sexp_type(instrumentr_promise_get_expression(promise));
-    }
-
-}
-
-
 void process_parameter(ArgumentData& argument_data,
                        const std::string& package_name,
                        const std::string& function_name,
@@ -49,6 +26,7 @@ void process_parameter(ArgumentData& argument_data,
 
     int missing = instrumentr_parameter_is_missing(parameter);
 
+    std::string argument_type = STRICTR_NA_STRING;
     std::string expression_type = STRICTR_NA_STRING;
     std::string value_type = STRICTR_NA_STRING;
     int forced = NA_INTEGER;
@@ -86,7 +64,27 @@ void process_parameter(ArgumentData& argument_data,
         instrumentr_argument_t argument =
             instrumentr_parameter_get_argument_by_position(parameter, 0);
 
-        get_argument_type(argument, expression_type, value_type);
+        if(instrumentr_argument_is_value(argument)) {
+            instrumentr_value_t value = instrumentr_argument_as_value(argument);
+            argument_type = get_sexp_type(instrumentr_value_get_sexp(value));
+            expression_type = STRICTR_NA_STRING;
+            value_type = STRICTR_NA_STRING;
+            forced = NA_INTEGER;
+        }
+        /* if not a value, it has to be a promise */
+        else {
+            argument_type = "promise";
+            instrumentr_promise_t promise = instrumentr_argument_as_promise(argument);
+            if (instrumentr_promise_is_forced(promise)) {
+                value_type = get_sexp_type(instrumentr_promise_get_value(promise));
+                forced = true;
+            }
+            else {
+                value_type = STRICTR_NA_STRING;
+                forced = false;
+            }
+            expression_type = get_sexp_type(instrumentr_promise_get_expression(promise));
+        }
     }
 
     argument_data.push_back(parameter_id,
@@ -97,6 +95,7 @@ void process_parameter(ArgumentData& argument_data,
                             parameter_name,
                             vararg,
                             missing,
+                            argument_type,
                             expression_type,
                             STRICTR_NA_STRING,
                             value_type,
@@ -109,12 +108,15 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
                         instrumentr_package_t package,
                         instrumentr_function_t function,
                         instrumentr_call_t call) {
+
     TracingState* tracing_state = lazr_tracer_get_tracing_state(tracer);
     CallData& call_data = tracing_state->get_call_data();
     ArgumentData& argument_data = tracing_state->get_argument_data();
 
-    const std::string package_name(instrumentr_package_get_name(package));
-    const std::string function_name(instrumentr_function_get_name(function));
+    const char* name = instrumentr_package_get_name(package);
+    const std::string package_name(name == NULL ? STRICTR_NA_STRING : name);
+    name = instrumentr_function_get_name(function);
+    const std::string function_name(name == NULL ? STRICTR_NA_STRING : name);
 
     int call_id = instrumentr_object_get_id(call);
     bool has_result = instrumentr_call_has_result(call);
