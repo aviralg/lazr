@@ -1,6 +1,6 @@
-#ifndef STRICTR_RINCLUDES_H
-#define STRICTR_RINCLUDES_H
+#ifndef LAZR_RINCLUDES_H
+#define LAZR_RINCLUDES_H
 
 #include <instrumentr/Rincludes.h>
 
-#endif /* STRICTR_RINCLUDES_H */
+#endif /* LAZR_RINCLUDES_H */

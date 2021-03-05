@@ -12,8 +12,7 @@ extern "C" {
 static const R_CallMethodDef callMethods[] = {
     {"lazr_tracer_create", (DL_FUNC) &r_lazr_tracer_create, 0},
     {"lazr_tracer_get_tracing_state", (DL_FUNC) &r_lazr_tracer_get_tracing_state, 1},
-    {NULL, NULL, 0}
-};
+    {NULL, NULL, 0}};
 
 void R_init_lazr(DllInfo* dll) {
     R_registerRoutines(dll, NULL, callMethods, NULL, NULL);

@@ -5,10 +5,9 @@
 #include <instrumentr/instrumentr.h>
 
 std::string get_sexp_type(SEXP r_value) {
-    if(r_value == R_UnboundValue) {
-        return STRICTR_NA_STRING;
-    }
-    else {
+    if (r_value == R_UnboundValue) {
+        return LAZR_NA_STRING;
+    } else {
         return type2char(TYPEOF(r_value));
     }
 }
@@ -26,18 +25,18 @@ void process_parameter(ArgumentData& argument_data,
 
     int missing = instrumentr_parameter_is_missing(parameter);
 
-    std::string argument_type = STRICTR_NA_STRING;
-    std::string expression_type = STRICTR_NA_STRING;
-    std::string value_type = STRICTR_NA_STRING;
+    std::string argument_type = LAZR_NA_STRING;
+    std::string expression_type = LAZR_NA_STRING;
+    std::string value_type = LAZR_NA_STRING;
     int forced = NA_INTEGER;
 
     if (missing) {
-        expression_type = STRICTR_NA_STRING;
-        value_type = STRICTR_NA_STRING;
+        expression_type = LAZR_NA_STRING;
+        value_type = LAZR_NA_STRING;
         forced = NA_INTEGER;
     } else if (vararg) {
-        expression_type = STRICTR_NA_STRING;
-        value_type = STRICTR_NA_STRING;
+        expression_type = LAZR_NA_STRING;
+        value_type = LAZR_NA_STRING;
         forced = true;
 
         int argument_count =
@@ -48,12 +47,13 @@ void process_parameter(ArgumentData& argument_data,
                 instrumentr_parameter_get_argument_by_position(parameter,
                                                                index);
 
-            if(instrumentr_argument_is_value(argument)) {
+            if (instrumentr_argument_is_value(argument)) {
                 forced = true;
             }
             /* if not a value, it has to be a promise */
             else {
-                instrumentr_promise_t promise = instrumentr_argument_as_promise(argument);
+                instrumentr_promise_t promise =
+                    instrumentr_argument_as_promise(argument);
                 if (!instrumentr_promise_is_forced(promise)) {
                     forced = false;
                     break;
@@ -64,26 +64,28 @@ void process_parameter(ArgumentData& argument_data,
         instrumentr_argument_t argument =
             instrumentr_parameter_get_argument_by_position(parameter, 0);
 
-        if(instrumentr_argument_is_value(argument)) {
+        if (instrumentr_argument_is_value(argument)) {
             instrumentr_value_t value = instrumentr_argument_as_value(argument);
             argument_type = get_sexp_type(instrumentr_value_get_sexp(value));
-            expression_type = STRICTR_NA_STRING;
-            value_type = STRICTR_NA_STRING;
+            expression_type = LAZR_NA_STRING;
+            value_type = LAZR_NA_STRING;
             forced = NA_INTEGER;
         }
         /* if not a value, it has to be a promise */
         else {
             argument_type = "promise";
-            instrumentr_promise_t promise = instrumentr_argument_as_promise(argument);
+            instrumentr_promise_t promise =
+                instrumentr_argument_as_promise(argument);
             if (instrumentr_promise_is_forced(promise)) {
-                value_type = get_sexp_type(instrumentr_promise_get_value(promise));
+                value_type =
+                    get_sexp_type(instrumentr_promise_get_value(promise));
                 forced = true;
-            }
-            else {
-                value_type = STRICTR_NA_STRING;
+            } else {
+                value_type = LAZR_NA_STRING;
                 forced = false;
             }
-            expression_type = get_sexp_type(instrumentr_promise_get_expression(promise));
+            expression_type =
+                get_sexp_type(instrumentr_promise_get_expression(promise));
         }
     }
 
@@ -97,30 +99,29 @@ void process_parameter(ArgumentData& argument_data,
                             missing,
                             argument_type,
                             expression_type,
-                            STRICTR_NA_STRING,
+                            LAZR_NA_STRING,
                             value_type,
                             forced);
 }
 
 void closure_call_exit_callback(instrumentr_tracer_t tracer,
-                        instrumentr_callback_t callback,
-                        instrumentr_application_t application,
-                        instrumentr_package_t package,
-                        instrumentr_function_t function,
-                        instrumentr_call_t call) {
-
+                                instrumentr_callback_t callback,
+                                instrumentr_application_t application,
+                                instrumentr_package_t package,
+                                instrumentr_function_t function,
+                                instrumentr_call_t call) {
     TracingState* tracing_state = lazr_tracer_get_tracing_state(tracer);
     CallData& call_data = tracing_state->get_call_data();
     ArgumentData& argument_data = tracing_state->get_argument_data();
 
     const char* name = instrumentr_package_get_name(package);
-    const std::string package_name(name == NULL ? STRICTR_NA_STRING : name);
+    const std::string package_name(name == NULL ? LAZR_NA_STRING : name);
     name = instrumentr_function_get_name(function);
-    const std::string function_name(name == NULL ? STRICTR_NA_STRING : name);
+    const std::string function_name(name == NULL ? LAZR_NA_STRING : name);
 
     int call_id = instrumentr_object_get_id(call);
     bool has_result = instrumentr_call_has_result(call);
-    std::string result_type = STRICTR_NA_STRING;
+    std::string result_type = LAZR_NA_STRING;
     if (has_result) {
         result_type = get_type_as_string(instrumentr_call_get_result(call));
     }

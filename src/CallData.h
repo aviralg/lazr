@@ -1,5 +1,5 @@
-#ifndef STRICTR_CALL_DATA_H
-#define STRICTR_CALL_DATA_H
+#ifndef LAZR_CALL_DATA_H
+#define LAZR_CALL_DATA_H
 
 #include <string>
 #include <vector>
@@ -11,11 +11,11 @@ class CallData {
     }
 
     void push_back(int call_id = NA_INTEGER,
-                   const std::string& package_name = STRICTR_NA_STRING,
-                   const std::string& function_name = STRICTR_NA_STRING,
+                   const std::string& package_name = LAZR_NA_STRING,
+                   const std::string& function_name = LAZR_NA_STRING,
                    int successful = NA_INTEGER,
-                   const std::string& result_type = STRICTR_NA_STRING,
-                   const std::string& force_order = STRICTR_NA_STRING,
+                   const std::string& result_type = LAZR_NA_STRING,
+                   const std::string& force_order = LAZR_NA_STRING,
                    int c_call_count = NA_INTEGER,
                    int r_call_count = NA_INTEGER,
                    double c_execution_time = NA_REAL,
@@ -33,15 +33,16 @@ class CallData {
     }
 
     SEXP to_sexp() {
-        std::vector<SEXP> columns({PROTECT(integer_vector_wrap(call_id_seq_)),
-                PROTECT(character_vector_wrap(package_name_seq_)),
-                PROTECT(character_vector_wrap(function_name_seq_)),
-                PROTECT(character_vector_wrap(result_type_seq_)),
-                PROTECT(character_vector_wrap(force_order_seq_)),
-                    PROTECT(integer_vector_wrap(c_call_count_seq_)),
-                    PROTECT(integer_vector_wrap(r_call_count_seq_)),
-                    PROTECT(real_vector_wrap(c_execution_time_seq_)),
-                    PROTECT(real_vector_wrap(r_execution_time_seq_))});
+        std::vector<SEXP> columns(
+            {PROTECT(integer_vector_wrap(call_id_seq_)),
+             PROTECT(character_vector_wrap(package_name_seq_)),
+             PROTECT(character_vector_wrap(function_name_seq_)),
+             PROTECT(character_vector_wrap(result_type_seq_)),
+             PROTECT(character_vector_wrap(force_order_seq_)),
+             PROTECT(integer_vector_wrap(c_call_count_seq_)),
+             PROTECT(integer_vector_wrap(r_call_count_seq_)),
+             PROTECT(real_vector_wrap(c_execution_time_seq_)),
+             PROTECT(real_vector_wrap(r_execution_time_seq_))});
 
         std::vector<std::string> names({"call_id",
                                         "package_name",
@@ -73,4 +74,4 @@ class CallData {
     std::vector<double> r_execution_time_seq_;
 };
 
-#endif /* STRICTR_CALL_DATA_H */
+#endif /* LAZR_CALL_DATA_H */

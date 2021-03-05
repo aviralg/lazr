@@ -1,6 +1,6 @@
 #include "utilities.h"
 
-const std::string STRICTR_NA_STRING("***STRICTR_NA_STRING***");
+const std::string LAZR_NA_STRING("***LAZR_NA_STRING***");
 
 std::string get_type_as_string(SEXP r_object) {
     return type2char(TYPEOF(r_object));
@@ -38,8 +38,8 @@ SEXP character_vector_wrap(const std::vector<std::string>& vector) {
         const std::string& value = vector[i];
         SET_STRING_ELT(r_vector,
                        i,
-                       value == STRICTR_NA_STRING ? NA_STRING
-                                                  : mkChar(value.c_str()));
+                       value == LAZR_NA_STRING ? NA_STRING
+                                               : mkChar(value.c_str()));
     }
 
     UNPROTECT(1);
