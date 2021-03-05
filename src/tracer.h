@@ -6,10 +6,10 @@
 #include <instrumentr/instrumentr.h>
 
 extern "C" {
-SEXP r_strictr_tracer_create();
-SEXP r_strictr_tracer_get_tracing_state(SEXP r_tracer);
+SEXP r_lazr_tracer_create();
+SEXP r_lazr_tracer_get_tracing_state(SEXP r_tracer);
 
-TracingState* strictr_tracer_get_tracing_state(instrumentr_tracer_t tracer);
+TracingState* lazr_tracer_get_tracing_state(instrumentr_tracer_t tracer);
 }
 
 #endif /* STRICTR_TRACER_H */

@@ -10,12 +10,12 @@ INSTRUMENTR_DEFINE_API()
 extern "C" {
 
 static const R_CallMethodDef callMethods[] = {
-    {"strictr_tracer_create", (DL_FUNC) &r_strictr_tracer_create, 0},
-    {"strictr_tracer_get_tracing_state", (DL_FUNC) &r_strictr_tracer_get_tracing_state, 1},
+    {"lazr_tracer_create", (DL_FUNC) &r_lazr_tracer_create, 0},
+    {"lazr_tracer_get_tracing_state", (DL_FUNC) &r_lazr_tracer_get_tracing_state, 1},
     {NULL, NULL, 0}
 };
 
-void R_init_strictr(DllInfo* dll) {
+void R_init_lazr(DllInfo* dll) {
     R_registerRoutines(dll, NULL, callMethods, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 

@@ -4,6 +4,37 @@
 #include "utilities.h"
 #include <instrumentr/instrumentr.h>
 
+std::string get_sexp_type(SEXP r_value) {
+    if(r_value == R_UnboundValue) {
+        return STRICTR_NA_STRING;
+    }
+    else {
+        return type2char(TYPEOF(r_value));
+    }
+}
+
+void get_argument_type(instrumentr_argument_t argument,
+                       std::string& expression_type,
+                       std::string& value_type) {
+    if(instrumentr_argument_is_value(argument)) {
+        instrumentr_value_t value = instrumentr_argument_as_value(argument);
+        expression_type = STRICTR_NA_STRING;
+        value_type = get_sexp_type(instrumentr_value_get_sexp(value));
+    }
+    /* if not a value, it has to be a promise */
+    else {
+        instrumentr_promise_t promise = instrumentr_argument_as_promise(argument);
+        if (instrumentr_promise_is_forced(promise)) {
+            value_type = STRICTR_NA_STRING;
+        }
+        else {
+            value_type = get_sexp_type(instrumentr_promise_get_value(promise));
+        }
+        expression_type = get_sexp_type(instrumentr_promise_get_expression(promise));
+    }
+
+}
+
 
 void process_parameter(ArgumentData& argument_data,
                        const std::string& package_name,
@@ -38,21 +69,24 @@ void process_parameter(ArgumentData& argument_data,
             instrumentr_argument_t argument =
                 instrumentr_parameter_get_argument_by_position(parameter,
                                                                index);
-            if (!instrumentr_argument_is_evaluated(argument)) {
-                forced = false;
-                break;
+
+            if(instrumentr_argument_is_value(argument)) {
+                forced = true;
+            }
+            /* if not a value, it has to be a promise */
+            else {
+                instrumentr_promise_t promise = instrumentr_argument_as_promise(argument);
+                if (!instrumentr_promise_is_forced(promise)) {
+                    forced = false;
+                    break;
+                }
             }
         }
     } else {
         instrumentr_argument_t argument =
             instrumentr_parameter_get_argument_by_position(parameter, 0);
-        expression_type =
-            get_type_as_string(instrumentr_argument_get_expression(argument));
-        forced = instrumentr_argument_is_evaluated(argument);
-        value_type =
-            forced
-                ? get_type_as_string(instrumentr_argument_get_value(argument))
-                : STRICTR_NA_STRING;
+
+        get_argument_type(argument, expression_type, value_type);
     }
 
     argument_data.push_back(parameter_id,
@@ -69,13 +103,13 @@ void process_parameter(ArgumentData& argument_data,
                             forced);
 }
 
-void call_exit_callback(instrumentr_tracer_t tracer,
+void closure_call_exit_callback(instrumentr_tracer_t tracer,
                         instrumentr_callback_t callback,
                         instrumentr_application_t application,
                         instrumentr_package_t package,
                         instrumentr_function_t function,
                         instrumentr_call_t call) {
-    TracingState* tracing_state = strictr_tracer_get_tracing_state(tracer);
+    TracingState* tracing_state = lazr_tracer_get_tracing_state(tracer);
     CallData& call_data = tracing_state->get_call_data();
     ArgumentData& argument_data = tracing_state->get_argument_data();
 

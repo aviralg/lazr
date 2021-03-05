@@ -3,7 +3,7 @@
 
 #include <instrumentr/instrumentr.h>
 
-void call_exit_callback(instrumentr_tracer_t tracer,
+void closure_call_exit_callback(instrumentr_tracer_t tracer,
                         instrumentr_callback_t callback,
                         instrumentr_application_t application,
                         instrumentr_package_t package,

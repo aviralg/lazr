@@ -1,4 +1,4 @@
 library(testthat)
-library(strictr)
+library(lazr)
 
-test_check("strictr")
+test_check("lazr")

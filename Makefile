@@ -8,11 +8,11 @@ build: document
 	$(R) CMD build .
 
 check: build
-	$(R) CMD check strictr*tar.gz
+	$(R) CMD check lazr*tar.gz
 
 clean:
-	-rm -f strictr*tar.gz
-	-rm -fr strictr.Rcheck
+	-rm -f lazr*tar.gz
+	-rm -fr lazr.Rcheck
 	-rm -rf src/*.o src/*.so
 
 document:
