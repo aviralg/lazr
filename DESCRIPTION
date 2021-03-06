@@ -13,9 +13,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
-    instrumentr,
-    fst,
-    purrr
+    instrumentr
 Remotes:
     PRL-PRG/instrumentr
 LinkingTo:
