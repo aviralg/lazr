@@ -10,15 +10,11 @@ profile_expr <- function(code,
         code <- substitute(code)
     }
 
-    trace_code(tracer, code, environment = environment, quote = FALSE)
+    result <- trace_code(tracer, code, environment = environment, quote = FALSE)
 
-    state <- .Call(C_lazr_tracer_get_tracing_state, tracer)
+    result$state$exec_stats <- get_exec_stats(tracer)
 
-    state$exec_stats <- get_exec_stats(tracer)
-
-    list(data = list(calls = state$calls,
-                     arguments = state$arguments,
-                     exec_stats = state$exec_stats))
+    result
 }
 
 #' @export

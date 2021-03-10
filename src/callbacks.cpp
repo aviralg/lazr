@@ -106,13 +106,14 @@ void process_parameter(ArgumentData& argument_data,
 
 void closure_call_exit_callback(instrumentr_tracer_t tracer,
                                 instrumentr_callback_t callback,
+                                instrumentr_state_t state,
                                 instrumentr_application_t application,
                                 instrumentr_package_t package,
                                 instrumentr_function_t function,
                                 instrumentr_call_t call) {
-    TracingState* tracing_state = lazr_tracer_get_tracing_state(tracer);
-    CallData& call_data = tracing_state->get_call_data();
-    ArgumentData& argument_data = tracing_state->get_argument_data();
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallData& call_data = tracing_state.get_call_data();
+    ArgumentData& argument_data = tracing_state.get_argument_data();
 
     const char* name = instrumentr_package_get_name(package);
     const std::string package_name(name == NULL ? LAZR_NA_STRING : name);
@@ -138,4 +139,16 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
         process_parameter(
             argument_data, package_name, function_name, call_id, parameter);
     }
+}
+
+void tracing_entry_callback(instrumentr_tracer_t tracer,
+                            instrumentr_callback_t callback,
+                            instrumentr_state_t state) {
+    TracingState::initialize(state);
+}
+
+void tracing_exit_callback(instrumentr_tracer_t tracer,
+                           instrumentr_callback_t callback,
+                           instrumentr_state_t state) {
+    TracingState::finalize(state);
 }

@@ -4,6 +4,7 @@
 #include "Rincludes.h"
 #include "CallData.h"
 #include "ArgumentData.h"
+#include <instrumentr/instrumentr.h>
 
 class TracingState {
   public:
@@ -26,28 +27,17 @@ class TracingState {
         return argument_data_;
     }
 
-    SEXP to_sexp() {
-        SEXP r_data = PROTECT(allocVector(VECSXP, 2));
-        SET_VECTOR_ELT(r_data, 0, call_data_.to_sexp());
-        SET_VECTOR_ELT(r_data, 1, argument_data_.to_sexp());
+    static void initialize(instrumentr_state_t state);
 
-        SEXP r_names = PROTECT(allocVector(STRSXP, 2));
-        SET_STRING_ELT(r_names, 0, mkChar("calls"));
-        SET_STRING_ELT(r_names, 1, mkChar("arguments"));
+    static void finalize(instrumentr_state_t state);
 
-        setAttrib(r_data, R_NamesSymbol, r_names);
-
-        UNPROTECT(2);
-        return r_data;
-    }
+    static TracingState& lookup(instrumentr_state_t state);
 
   private:
     CallData call_data_;
     ArgumentData argument_data_;
 };
 
-SEXP wrap_tracing_state(TracingState* tracing_state);
 
-TracingState* unwrap_tracing_state(SEXP r_tracing_state);
 
 #endif /* LAZR_TRACING_STATE_H */
