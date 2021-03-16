@@ -23,8 +23,8 @@ void TracingState::initialize(instrumentr_state_t state) {
 
 void TracingState::finalize(instrumentr_state_t state) {
     TracingState& tracing_state = TracingState::lookup(state);
-    SEXP r_calls = PROTECT(tracing_state.get_call_data().to_sexp());
-    SEXP r_arguments = PROTECT(tracing_state.get_argument_data().to_sexp());
+    SEXP r_calls = PROTECT(tracing_state.get_call_table().to_sexp());
+    SEXP r_arguments = PROTECT(tracing_state.get_argument_table().to_sexp());
 
     instrumentr_state_erase(state, "tracing_state", true);
     instrumentr_state_insert(state, "calls", r_calls, true);

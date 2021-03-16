@@ -22,4 +22,6 @@ void set_class(SEXP r_object, const std::string& class_name);
 SEXP create_data_frame(const std::vector<std::string>& names,
                        const std::vector<SEXP>& columns);
 
+SEXP make_char(const std::string& input);
+
 #endif /* LAZR_UTILITIES_H */

@@ -2,8 +2,8 @@
 #define LAZR_TRACING_STATE_H
 
 #include "Rincludes.h"
-#include "CallData.h"
-#include "ArgumentData.h"
+#include "CallTable.h"
+#include "ArgumentTable.h"
 #include <instrumentr/instrumentr.h>
 
 class TracingState {
@@ -11,20 +11,20 @@ class TracingState {
     TracingState() {
     }
 
-    CallData& get_call_data() {
-        return call_data_;
+    CallTable& get_call_table() {
+        return call_table_;
     }
 
-    const CallData& get_call_data() const {
-        return call_data_;
+    const CallTable& get_call_table() const {
+        return call_table_;
     }
 
-    ArgumentData& get_argument_data() {
-        return argument_data_;
+    ArgumentTable& get_argument_table() {
+        return argument_table_;
     }
 
-    const ArgumentData& get_argument_data() const {
-        return argument_data_;
+    const ArgumentTable& get_argument_table() const {
+        return argument_table_;
     }
 
     static void initialize(instrumentr_state_t state);
@@ -34,10 +34,8 @@ class TracingState {
     static TracingState& lookup(instrumentr_state_t state);
 
   private:
-    CallData call_data_;
-    ArgumentData argument_data_;
+    CallTable call_table_;
+    ArgumentTable argument_table_;
 };
-
-
 
 #endif /* LAZR_TRACING_STATE_H */

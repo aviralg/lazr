@@ -12,64 +12,69 @@ std::string get_sexp_type(SEXP r_value) {
     }
 }
 
-void process_parameter(ArgumentData& argument_data,
+bool promise_check_escaped(instrumentr_call_t call,
+                           Call& call_data,
+                           Argument& argument_data) {
+    if (instrumentr_model_is_dead(call)) {
+        argument_data.escaped();
+        return true;
+    }
+
+    return false;
+}
+
+void process_parameter(ArgumentTable& argument_table,
                        const std::string& package_name,
                        const std::string& function_name,
                        int call_id,
                        instrumentr_parameter_t parameter) {
-    int parameter_id = instrumentr_object_get_id(parameter);
+    int parameter_id = instrumentr_model_get_id(parameter);
     int parameter_position = instrumentr_parameter_get_position(parameter);
     const std::string parameter_name(instrumentr_parameter_get_name(parameter));
-
+    int argument_count = instrumentr_parameter_get_argument_count(parameter);
     int vararg = instrumentr_parameter_is_vararg(parameter);
-
     int missing = instrumentr_parameter_is_missing(parameter);
 
     std::string argument_type = LAZR_NA_STRING;
     std::string expression_type = LAZR_NA_STRING;
+    std::string transitive_type = LAZR_NA_STRING;
     std::string value_type = LAZR_NA_STRING;
-    int forced = NA_INTEGER;
+    int preforced = 0;
 
+    /* if argument is missing */
     if (missing) {
         expression_type = LAZR_NA_STRING;
-        value_type = LAZR_NA_STRING;
-        forced = NA_INTEGER;
-    } else if (vararg) {
-        expression_type = LAZR_NA_STRING;
-        value_type = LAZR_NA_STRING;
-        forced = true;
-
-        int argument_count =
-            instrumentr_parameter_get_argument_count(parameter);
-
+        transitive_type = LAZR_NA_STRING;
+    }
+    /* if not missing and is a vararg */
+    else if (vararg) {
         for (int index = 0; index < argument_count; ++index) {
             instrumentr_argument_t argument =
                 instrumentr_parameter_get_argument_by_position(parameter,
                                                                index);
 
             if (instrumentr_argument_is_value(argument)) {
-                forced = true;
+                ++preforced;
             }
             /* if not a value, it has to be a promise */
             else {
                 instrumentr_promise_t promise =
                     instrumentr_argument_as_promise(argument);
                 if (!instrumentr_promise_is_forced(promise)) {
-                    forced = false;
-                    break;
+                    ++preforced;
                 }
             }
         }
-    } else {
+    }
+    /* parameter is not vararg and not missing, so it has a single argument */
+    else {
         instrumentr_argument_t argument =
             instrumentr_parameter_get_argument_by_position(parameter, 0);
 
         if (instrumentr_argument_is_value(argument)) {
             instrumentr_value_t value = instrumentr_argument_as_value(argument);
             argument_type = get_sexp_type(instrumentr_value_get_sexp(value));
-            expression_type = LAZR_NA_STRING;
-            value_type = LAZR_NA_STRING;
-            forced = NA_INTEGER;
+            ++preforced;
         }
         /* if not a value, it has to be a promise */
         else {
@@ -77,31 +82,73 @@ void process_parameter(ArgumentData& argument_data,
             instrumentr_promise_t promise =
                 instrumentr_argument_as_promise(argument);
             if (instrumentr_promise_is_forced(promise)) {
+                ++preforced;
                 value_type =
                     get_sexp_type(instrumentr_promise_get_value(promise));
-                forced = true;
-            } else {
-                value_type = LAZR_NA_STRING;
-                forced = false;
             }
             expression_type =
                 get_sexp_type(instrumentr_promise_get_expression(promise));
         }
     }
 
-    argument_data.push_back(parameter_id,
-                            call_id,
-                            package_name,
-                            function_name,
-                            parameter_position,
-                            parameter_name,
-                            vararg,
-                            missing,
-                            argument_type,
-                            expression_type,
-                            LAZR_NA_STRING,
-                            value_type,
-                            forced);
+    Argument* argument_data = new Argument(parameter_id,
+                                           call_id,
+                                           package_name,
+                                           function_name,
+                                           parameter_position,
+                                           parameter_name,
+                                           argument_count,
+                                           vararg,
+                                           missing,
+                                           argument_type,
+                                           expression_type,
+                                           transitive_type,
+                                           value_type,
+                                           preforced);
+    argument_table.insert(argument_data);
+}
+
+void process_parameters(Call& call_data,
+                        ArgumentTable& argument_table,
+                        instrumentr_call_t call) {
+    int call_id = instrumentr_model_get_id(call);
+    int parameter_count = instrumentr_call_get_parameter_count(call);
+
+    for (int index = 0; index < parameter_count; ++index) {
+        instrumentr_parameter_t parameter =
+            instrumentr_call_get_parameter_by_position(call, index);
+
+        process_parameter(argument_table,
+                          call_data.get_package_name(),
+                          call_data.get_function_name(),
+                          call_id,
+                          parameter);
+    }
+}
+
+void closure_call_entry_callback(instrumentr_tracer_t tracer,
+                                 instrumentr_callback_t callback,
+                                 instrumentr_state_t state,
+                                 instrumentr_application_t application,
+                                 instrumentr_package_t package,
+                                 instrumentr_function_t function,
+                                 instrumentr_call_t call) {
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
+
+    const char* name = instrumentr_package_get_name(package);
+    const std::string package_name(name == NULL ? LAZR_NA_STRING : name);
+    name = instrumentr_function_get_name(function);
+    const std::string function_name(name == NULL ? LAZR_NA_STRING : name);
+
+    int call_id = instrumentr_model_get_id(call);
+
+    Call* call_data = new Call(call_id, package_name, function_name);
+
+    call_table.insert(call_data);
+
+    process_parameters(*call_data, argument_table, call);
 }
 
 void closure_call_exit_callback(instrumentr_tracer_t tracer,
@@ -112,33 +159,178 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
                                 instrumentr_function_t function,
                                 instrumentr_call_t call) {
     TracingState& tracing_state = TracingState::lookup(state);
-    CallData& call_data = tracing_state.get_call_data();
-    ArgumentData& argument_data = tracing_state.get_argument_data();
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
 
-    const char* name = instrumentr_package_get_name(package);
-    const std::string package_name(name == NULL ? LAZR_NA_STRING : name);
-    name = instrumentr_function_get_name(function);
-    const std::string function_name(name == NULL ? LAZR_NA_STRING : name);
+    int call_id = instrumentr_model_get_id(call);
 
-    int call_id = instrumentr_object_get_id(call);
     bool has_result = instrumentr_call_has_result(call);
     std::string result_type = LAZR_NA_STRING;
     if (has_result) {
         result_type = get_type_as_string(instrumentr_call_get_result(call));
     }
 
-    call_data.push_back(
-        call_id, package_name, function_name, has_result, result_type);
+    Call& call_data = call_table.lookup(call_id);
 
-    int parameter_count = instrumentr_call_get_parameter_count(call);
+    call_data.set_result(result_type);
+}
 
-    for (int index = 0; index < parameter_count; ++index) {
-        instrumentr_parameter_t parameter =
-            instrumentr_call_get_parameter_by_position(call, index);
-
-        process_parameter(
-            argument_data, package_name, function_name, call_id, parameter);
+void promise_force_exit_callback(instrumentr_tracer_t tracer,
+                                 instrumentr_callback_t callback,
+                                 instrumentr_state_t state,
+                                 instrumentr_application_t application,
+                                 instrumentr_promise_t promise) {
+    if (instrumentr_promise_get_type(promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return;
     }
+
+    instrumentr_call_t call = instrumentr_promise_get_call(promise);
+    instrumentr_argument_t argument = instrumentr_promise_get_argument(promise);
+    instrumentr_parameter_t parameter =
+        instrumentr_promise_get_parameter(promise);
+
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
+
+    int call_id = instrumentr_model_get_id(call);
+
+    Call& call_data = call_table.lookup(call_id);
+
+    Argument& argument_data =
+        argument_table.lookup(instrumentr_model_get_id(parameter));
+
+    bool escaped = promise_check_escaped(call, call_data, argument_data);
+
+    /* TODO: why should promise not be alive at this point?  */
+    bool has_value = instrumentr_model_is_alive(promise) &&
+                     instrumentr_promise_is_forced(promise);
+    std::string value_type = LAZR_NA_STRING;
+    if (has_value) {
+        value_type = get_type_as_string(instrumentr_promise_get_value(promise));
+    }
+
+    int force_depth = NA_INTEGER;
+    int companion_position = NA_INTEGER;
+
+    int closure_count = 0;
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    for (int i = 1; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (companion_position == NA_INTEGER &&
+            instrumentr_frame_is_promise(frame)) {
+            instrumentr_promise_t frame_promise =
+                instrumentr_frame_as_promise(frame);
+
+            int frame_parameter_id = instrumentr_model_get_id(frame_promise);
+
+            if (instrumentr_promise_get_type(frame_promise) ==
+                INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+                instrumentr_call_t frame_call =
+                    instrumentr_promise_get_call(frame_promise);
+
+                int frame_call_id = instrumentr_model_get_id(frame_call);
+
+                if (frame_call_id == call_id) {
+                    instrumentr_parameter_t frame_parameter =
+                        instrumentr_promise_get_parameter(frame_promise);
+
+                    companion_position =
+                        instrumentr_parameter_get_position(frame_parameter);
+                }
+            }
+        }
+
+        if (instrumentr_frame_is_call(frame)) {
+            instrumentr_call_t frame_call = instrumentr_frame_as_call(frame);
+
+            int frame_call_id = instrumentr_model_get_id(frame_call);
+
+            instrumentr_function_t function =
+                instrumentr_call_get_function(call);
+
+            if (instrumentr_function_get_type(function) ==
+                INSTRUMENTR_FUNCTION_CLOSURE) {
+                ++closure_count;
+            }
+
+            if (frame_call_id == call_id) {
+                force_depth = closure_count;
+                break;
+            }
+        }
+    }
+
+    argument_data.force(value_type, force_depth, companion_position);
+
+    call_data.force_argument(instrumentr_parameter_get_position(parameter));
+}
+
+void promise_value_lookup_callback(instrumentr_tracer_t tracer,
+                                   instrumentr_callback_t callback,
+                                   instrumentr_state_t state,
+                                   instrumentr_application_t application,
+                                   instrumentr_promise_t promise) {
+    if (instrumentr_promise_get_type(promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return;
+    }
+
+    instrumentr_call_t call = instrumentr_promise_get_call(promise);
+    instrumentr_argument_t argument = instrumentr_promise_get_argument(promise);
+    instrumentr_parameter_t parameter =
+        instrumentr_promise_get_parameter(promise);
+
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
+
+    int call_id = instrumentr_model_get_id(call);
+
+    Call& call_data = call_table.lookup(call_id);
+
+    Argument& argument_data =
+        argument_table.lookup(instrumentr_model_get_id(parameter));
+
+    promise_check_escaped(call, call_data, argument_data);
+
+    argument_data.lookup();
+}
+
+void promise_substitute_callback(instrumentr_tracer_t tracer,
+                                 instrumentr_callback_t callback,
+                                 instrumentr_state_t state,
+                                 instrumentr_application_t application,
+                                 instrumentr_promise_t promise) {
+    if (instrumentr_promise_get_type(promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return;
+    }
+
+    instrumentr_call_t call = instrumentr_promise_get_call(promise);
+    instrumentr_argument_t argument = instrumentr_promise_get_argument(promise);
+    instrumentr_parameter_t parameter =
+        instrumentr_promise_get_parameter(promise);
+
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
+
+    int call_id = instrumentr_model_get_id(call);
+
+    Call& call_data = call_table.lookup(call_id);
+
+    Argument& argument_data =
+        argument_table.lookup(instrumentr_model_get_id(parameter));
+
+    promise_check_escaped(call, call_data, argument_data);
+
+    argument_data.metaprogram();
 }
 
 void tracing_entry_callback(instrumentr_tracer_t tracer,
