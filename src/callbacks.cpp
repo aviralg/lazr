@@ -3,6 +3,7 @@
 #include "TracingState.h"
 #include "utilities.h"
 #include <instrumentr/instrumentr.h>
+#include <vector>
 
 std::string get_sexp_type(SEXP r_value) {
     if (r_value == R_UnboundValue) {
@@ -175,37 +176,58 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
     call_data.set_result(result_type);
 }
 
-void promise_force_exit_callback(instrumentr_tracer_t tracer,
-                                 instrumentr_callback_t callback,
-                                 instrumentr_state_t state,
-                                 instrumentr_application_t application,
-                                 instrumentr_promise_t promise) {
-    if (instrumentr_promise_get_type(promise) !=
-        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
-        return;
+int compute_companion_position(int call_id, instrumentr_frame_t frame) {
+    instrumentr_promise_t frame_promise = instrumentr_frame_as_promise(frame);
+
+    // TODO: remove this after fixing bug
+    if (instrumentr_model_is_dead(frame_promise)) {
+        return NA_INTEGER;
     }
 
-    instrumentr_call_t call = instrumentr_promise_get_call(promise);
-    instrumentr_argument_t argument = instrumentr_promise_get_argument(promise);
-    instrumentr_parameter_t parameter =
-        instrumentr_promise_get_parameter(promise);
+    if (instrumentr_promise_get_type(frame_promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return NA_INTEGER;
+    }
 
-    TracingState& tracing_state = TracingState::lookup(state);
-    CallTable& call_table = tracing_state.get_call_table();
-    ArgumentTable& argument_table = tracing_state.get_argument_table();
+    const std::vector<instrumentr_promise_call_info_t>& call_info_seq =
+        instrumentr_promise_get_call_info(frame_promise);
 
+    for (int i = 0; i < call_info_seq.size(); ++i) {
+        instrumentr_promise_call_info_t call_info = call_info_seq[i];
+
+        instrumentr_call_t promise_call = call_info.call;
+        int promise_call_id = instrumentr_model_get_id(promise_call);
+
+        instrumentr_parameter_t promise_parameter = call_info.parameter;
+        int promise_parameter_position =
+            instrumentr_parameter_get_position(promise_parameter);
+
+        if (promise_call_id == call_id) {
+            return promise_parameter_position;
+        }
+    }
+
+    return NA_INTEGER;
+}
+
+void handle_promise_force_entry_callback(TracingState& tracing_state,
+                                         CallTable& call_table,
+                                         ArgumentTable& argument_table,
+                                         instrumentr_state_t state,
+                                         instrumentr_promise_t promise,
+                                         instrumentr_call_t call,
+                                         instrumentr_parameter_t parameter,
+                                         instrumentr_argument_t argument) {
     int call_id = instrumentr_model_get_id(call);
-
     Call& call_data = call_table.lookup(call_id);
 
-    Argument& argument_data =
-        argument_table.lookup(instrumentr_model_get_id(parameter));
+    int parameter_id = instrumentr_model_get_id(parameter);
+    Argument& argument_data = argument_table.lookup(parameter_id);
 
     bool escaped = promise_check_escaped(call, call_data, argument_data);
 
     /* TODO: why should promise not be alive at this point?  */
-    bool has_value = instrumentr_model_is_alive(promise) &&
-                     instrumentr_promise_is_forced(promise);
+    bool has_value = instrumentr_promise_is_forced(promise);
     std::string value_type = LAZR_NA_STRING;
     if (has_value) {
         value_type = get_type_as_string(instrumentr_promise_get_value(promise));
@@ -224,26 +246,7 @@ void promise_force_exit_callback(instrumentr_tracer_t tracer,
 
         if (companion_position == NA_INTEGER &&
             instrumentr_frame_is_promise(frame)) {
-            instrumentr_promise_t frame_promise =
-                instrumentr_frame_as_promise(frame);
-
-            int frame_parameter_id = instrumentr_model_get_id(frame_promise);
-
-            if (instrumentr_promise_get_type(frame_promise) ==
-                INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
-                instrumentr_call_t frame_call =
-                    instrumentr_promise_get_call(frame_promise);
-
-                int frame_call_id = instrumentr_model_get_id(frame_call);
-
-                if (frame_call_id == call_id) {
-                    instrumentr_parameter_t frame_parameter =
-                        instrumentr_promise_get_parameter(frame_promise);
-
-                    companion_position =
-                        instrumentr_parameter_get_position(frame_parameter);
-                }
-            }
+            companion_position = compute_companion_position(call_id, frame);
         }
 
         if (instrumentr_frame_is_call(frame)) {
@@ -266,9 +269,91 @@ void promise_force_exit_callback(instrumentr_tracer_t tracer,
         }
     }
 
-    argument_data.force(value_type, force_depth, companion_position);
+    argument_data.force(force_depth, companion_position);
 
     call_data.force_argument(instrumentr_parameter_get_position(parameter));
+}
+
+void promise_force_entry_callback(instrumentr_tracer_t tracer,
+                                  instrumentr_callback_t callback,
+                                  instrumentr_state_t state,
+                                  instrumentr_application_t application,
+                                  instrumentr_promise_t promise) {
+    //// TODO: remove this check after fixing the bug.
+    // if (instrumentr_model_is_dead(promise)) {
+    //    return;
+    //}
+
+    if (instrumentr_promise_get_type(promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return;
+    }
+
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
+
+    const std::vector<instrumentr_promise_call_info_t>& call_info_seq =
+        instrumentr_promise_get_call_info(promise);
+
+    for (int i = 0; i < call_info_seq.size(); ++i) {
+        instrumentr_promise_call_info_t call_info = call_info_seq[i];
+        handle_promise_force_entry_callback(tracing_state,
+                                            call_table,
+                                            argument_table,
+                                            state,
+                                            promise,
+                                            call_info.call,
+                                            call_info.parameter,
+                                            call_info.argument);
+    }
+}
+
+void promise_force_exit_callback(instrumentr_tracer_t tracer,
+                                 instrumentr_callback_t callback,
+                                 instrumentr_state_t state,
+                                 instrumentr_application_t application,
+                                 instrumentr_promise_t promise) {
+    // TODO: remove this check after fixing the bug.
+    if (instrumentr_model_is_dead(promise)) {
+        return;
+    }
+
+    if (instrumentr_promise_get_type(promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return;
+    }
+
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
+
+    const std::vector<instrumentr_promise_call_info_t>& call_info_seq =
+        instrumentr_promise_get_call_info(promise);
+
+    for (int i = 0; i < call_info_seq.size(); ++i) {
+        instrumentr_promise_call_info_t call_info = call_info_seq[i];
+        instrumentr_call_t call = call_info.call;
+        instrumentr_parameter_t parameter = call_info.parameter;
+        instrumentr_argument_t argument = call_info.argument;
+
+        int call_id = instrumentr_model_get_id(call);
+        Call& call_data = call_table.lookup(call_id);
+
+        int parameter_id = instrumentr_model_get_id(parameter);
+        Argument& argument_data = argument_table.lookup(parameter_id);
+
+        bool escaped = promise_check_escaped(call, call_data, argument_data);
+
+        bool has_value = instrumentr_promise_is_forced(promise);
+        std::string value_type = LAZR_NA_STRING;
+        if (has_value) {
+            value_type =
+                get_type_as_string(instrumentr_promise_get_value(promise));
+        }
+
+        argument_data.set_value_type(value_type);
+    }
 }
 
 void promise_value_lookup_callback(instrumentr_tracer_t tracer,
@@ -281,25 +366,30 @@ void promise_value_lookup_callback(instrumentr_tracer_t tracer,
         return;
     }
 
-    instrumentr_call_t call = instrumentr_promise_get_call(promise);
-    instrumentr_argument_t argument = instrumentr_promise_get_argument(promise);
-    instrumentr_parameter_t parameter =
-        instrumentr_promise_get_parameter(promise);
-
     TracingState& tracing_state = TracingState::lookup(state);
     CallTable& call_table = tracing_state.get_call_table();
     ArgumentTable& argument_table = tracing_state.get_argument_table();
 
-    int call_id = instrumentr_model_get_id(call);
+    const std::vector<instrumentr_promise_call_info_t>& call_info_seq =
+        instrumentr_promise_get_call_info(promise);
 
-    Call& call_data = call_table.lookup(call_id);
+    for (int i = 0; i < call_info_seq.size(); ++i) {
+        instrumentr_promise_call_info_t call_info = call_info_seq[i];
 
-    Argument& argument_data =
-        argument_table.lookup(instrumentr_model_get_id(parameter));
+        instrumentr_call_t call = call_info.call;
+        instrumentr_parameter_t parameter = call_info.parameter;
+        instrumentr_argument_t argument = call_info.argument;
 
-    promise_check_escaped(call, call_data, argument_data);
+        int call_id = instrumentr_model_get_id(call);
+        Call& call_data = call_table.lookup(call_id);
 
-    argument_data.lookup();
+        int parameter_id = instrumentr_model_get_id(parameter);
+        Argument& argument_data = argument_table.lookup(parameter_id);
+
+        promise_check_escaped(call, call_data, argument_data);
+
+        argument_data.lookup();
+    }
 }
 
 void promise_substitute_callback(instrumentr_tracer_t tracer,
@@ -312,25 +402,30 @@ void promise_substitute_callback(instrumentr_tracer_t tracer,
         return;
     }
 
-    instrumentr_call_t call = instrumentr_promise_get_call(promise);
-    instrumentr_argument_t argument = instrumentr_promise_get_argument(promise);
-    instrumentr_parameter_t parameter =
-        instrumentr_promise_get_parameter(promise);
-
     TracingState& tracing_state = TracingState::lookup(state);
     CallTable& call_table = tracing_state.get_call_table();
     ArgumentTable& argument_table = tracing_state.get_argument_table();
 
-    int call_id = instrumentr_model_get_id(call);
+    const std::vector<instrumentr_promise_call_info_t>& call_info_seq =
+        instrumentr_promise_get_call_info(promise);
 
-    Call& call_data = call_table.lookup(call_id);
+    for (int i = 0; i < call_info_seq.size(); ++i) {
+        instrumentr_promise_call_info_t call_info = call_info_seq[i];
 
-    Argument& argument_data =
-        argument_table.lookup(instrumentr_model_get_id(parameter));
+        instrumentr_call_t call = call_info.call;
+        instrumentr_parameter_t parameter = call_info.parameter;
+        instrumentr_argument_t argument = call_info.argument;
 
-    promise_check_escaped(call, call_data, argument_data);
+        int call_id = instrumentr_model_get_id(call);
+        Call& call_data = call_table.lookup(call_id);
 
-    argument_data.metaprogram();
+        int parameter_id = instrumentr_model_get_id(parameter);
+        Argument& argument_data = argument_table.lookup(parameter_id);
+
+        promise_check_escaped(call, call_data, argument_data);
+
+        argument_data.metaprogram();
+    }
 }
 
 void tracing_entry_callback(instrumentr_tracer_t tracer,

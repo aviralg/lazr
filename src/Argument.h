@@ -51,9 +51,7 @@ class Argument {
         return parameter_id_;
     }
 
-    void force(const std::string& value_type,
-               int force_depth,
-               int companion_position) {
+    void force(int force_depth, int companion_position) {
         if (escaped_) {
             ++esc_force_;
         } else {
@@ -62,8 +60,11 @@ class Argument {
         force_depth_ = force_depth;
 
         add_event_('F');
-        value_type_ = value_type;
         companion_position_ = companion_position;
+    }
+
+    void set_value_type(const std::string& value_type) {
+        value_type_ = value_type;
     }
 
     void lookup() {

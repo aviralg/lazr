@@ -31,6 +31,12 @@ SEXP r_lazr_tracer_create() {
     instrumentr_object_release(callback);
 
     callback = instrumentr_callback_create_from_c_function(
+        (void*) (promise_force_entry_callback),
+        INSTRUMENTR_EVENT_PROMISE_FORCE_ENTRY);
+    instrumentr_tracer_set_callback(tracer, callback);
+    instrumentr_object_release(callback);
+
+    callback = instrumentr_callback_create_from_c_function(
         (void*) (promise_force_exit_callback),
         INSTRUMENTR_EVENT_PROMISE_FORCE_EXIT);
     instrumentr_tracer_set_callback(tracer, callback);

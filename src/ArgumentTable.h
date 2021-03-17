@@ -21,6 +21,7 @@ class ArgumentTable {
 
     void insert(Argument* argument) {
         int parameter_id = argument->get_parameter_id();
+
         auto result = table_.insert({parameter_id, argument});
         if (!result.second) {
             Rf_error("argument with id %d is already present in table",
