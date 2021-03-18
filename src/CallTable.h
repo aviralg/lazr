@@ -36,6 +36,7 @@ class CallTable {
         int size = table_.size();
 
         SEXP r_call_id = PROTECT(allocVector(INTSXP, size));
+        SEXP r_function_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_package_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_function_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_successful = PROTECT(allocVector(LGLSXP, size));
@@ -49,6 +50,7 @@ class CallTable {
 
             call->to_sexp(index,
                           r_call_id,
+                          r_function_id,
                           r_package_name,
                           r_function_name,
                           r_successful,
@@ -57,6 +59,7 @@ class CallTable {
         }
 
         std::vector<SEXP> columns({r_call_id,
+                                   r_function_id,
                                    r_package_name,
                                    r_function_name,
                                    r_successful,
@@ -64,6 +67,7 @@ class CallTable {
                                    r_force_order});
 
         std::vector<std::string> names({"call_id",
+                                        "function_id",
                                         "package_name",
                                         "function_name",
                                         "successful",
@@ -72,7 +76,7 @@ class CallTable {
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(6);
+        UNPROTECT(7);
 
         return df;
     }

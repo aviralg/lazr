@@ -135,6 +135,7 @@ void closure_call_entry_callback(instrumentr_tracer_t tracer,
                                  instrumentr_function_t function,
                                  instrumentr_call_t call) {
     TracingState& tracing_state = TracingState::lookup(state);
+    FunctionTable& function_table = tracing_state.get_function_table();
     CallTable& call_table = tracing_state.get_call_table();
     ArgumentTable& argument_table = tracing_state.get_argument_table();
 
@@ -143,9 +144,29 @@ void closure_call_entry_callback(instrumentr_tracer_t tracer,
     name = instrumentr_function_get_name(function);
     const std::string function_name(name == NULL ? LAZR_NA_STRING : name);
 
+    int function_id = instrumentr_model_get_id(function);
+
+    Function* function_data = function_table.lookup(function_id);
+
+    if (function_data == nullptr) {
+        SEXP r_definition = instrumentr_function_get_definition(function);
+
+        std::string definition =
+            instrumentr_sexp_to_string(r_definition, true).front();
+
+        std::string hash = instrumentr_compute_hash(definition);
+
+        Function* function_data = new Function(
+            function_id, package_name, function_name, hash, definition);
+
+        function_table.insert(function_data);
+    } else {
+        function_data->call();
+    }
+
     int call_id = instrumentr_model_get_id(call);
 
-    Call* call_data = new Call(call_id, package_name, function_name);
+    Call* call_data = new Call(call_id, function_id, package_name, function_name);
 
     call_table.insert(call_data);
 
@@ -180,9 +201,9 @@ int compute_companion_position(int call_id, instrumentr_frame_t frame) {
     instrumentr_promise_t frame_promise = instrumentr_frame_as_promise(frame);
 
     // TODO: remove this after fixing bug
-    if (instrumentr_model_is_dead(frame_promise)) {
-        return NA_INTEGER;
-    }
+    // if (instrumentr_model_is_dead(frame_promise)) {
+    //    return NA_INTEGER;
+    //}
 
     if (instrumentr_promise_get_type(frame_promise) !=
         INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
@@ -315,9 +336,9 @@ void promise_force_exit_callback(instrumentr_tracer_t tracer,
                                  instrumentr_application_t application,
                                  instrumentr_promise_t promise) {
     // TODO: remove this check after fixing the bug.
-    if (instrumentr_model_is_dead(promise)) {
-        return;
-    }
+    // if (instrumentr_model_is_dead(promise)) {
+    //    return;
+    //}
 
     if (instrumentr_promise_get_type(promise) !=
         INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
