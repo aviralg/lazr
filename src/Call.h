@@ -19,16 +19,22 @@ class Call {
         , environment_name_(environment_name)
         , successful_(false)
         , result_type_(LAZR_NA_STRING)
-        , force_order_("") {
+        , force_order_("")
+        , exit_(false) {
     }
 
     int get_id() {
         return call_id_;
     }
 
-    void set_result(const std::string& result_type) {
+    void exit(const std::string& result_type) {
+        exit_ = true;
         result_type_ = result_type;
         successful_ = result_type != LAZR_NA_STRING;
+    }
+
+    bool has_exited() const {
+        return exit_;
     }
 
     void force_argument(int position) {
@@ -76,6 +82,7 @@ class Call {
     bool successful_;
     std::string result_type_;
     std::string force_order_;
+    bool exit_;
 };
 
 #endif /* LAZR_CALL_H */

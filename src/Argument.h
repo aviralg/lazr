@@ -51,12 +51,16 @@ class Argument {
         cap_force_ = preforced;
     }
 
-    int get_argument_id() {
+    int get_id() {
         return argument_id_;
     }
 
     int get_call_id() {
         return call_id_;
+    }
+
+    int get_position() {
+        return argument_position_;
     }
 
     void force(int force_depth, int companion_position) {

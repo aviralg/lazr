@@ -68,13 +68,29 @@ class ArgumentTable {
         }
     }
 
-    std::vector<Argument*>& lookup(int argument_id) {
+    const std::vector<Argument*>& lookup(int argument_id) {
         auto result = table_.find(argument_id);
 
         if (result == table_.end()) {
             Rf_error("cannot find argument with id %d", argument_id);
         }
         return result->second;
+    }
+
+    Argument* lookup(int argument_id, int call_id) {
+        const std::vector<Argument*>& arguments = lookup(argument_id);
+
+        for (auto argument: arguments) {
+            if (argument->get_call_id() == call_id) {
+                return argument;
+            }
+        }
+
+        Rf_error("cannot find argument with id %d and call id %d",
+                 argument_id,
+                 call_id);
+
+        return NULL;
     }
 
     SEXP to_sexp() {
@@ -410,7 +426,7 @@ class ArgumentTable {
 
     void insert_(Argument* argument) {
         ++size_;
-        int argument_id = argument->get_argument_id();
+        int argument_id = argument->get_id();
 
         auto result = table_.insert({argument_id, {argument}});
         if (!result.second) {
