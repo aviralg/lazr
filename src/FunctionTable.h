@@ -39,8 +39,9 @@ class FunctionTable {
         std::string hash = instrumentr_compute_hash(definition);
 
         Function* function_data = new Function(function_id,
-                                               environment->get_name(),
                                                function_name,
+                                               environment->get_id(),
+                                               environment->get_name(),
                                                hash,
                                                definition);
 
@@ -58,10 +59,11 @@ class FunctionTable {
         int size = table_.size();
 
         SEXP r_function_id = PROTECT(allocVector(INTSXP, size));
-        SEXP r_environment_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_function_name = PROTECT(allocVector(STRSXP, size));
-        SEXP r_hash = PROTECT(allocVector(STRSXP, size));
+        SEXP r_environment_id = PROTECT(allocVector(INTSXP, size));
+        SEXP r_environment_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_call_count = PROTECT(allocVector(INTSXP, size));
+        SEXP r_hash = PROTECT(allocVector(STRSXP, size));
         SEXP r_definition = PROTECT(allocVector(STRSXP, size));
 
         int index = 0;
@@ -71,30 +73,33 @@ class FunctionTable {
 
             function->to_sexp(index,
                               r_function_id,
-                              r_environment_name,
                               r_function_name,
-                              r_hash,
+                              r_environment_id,
+                              r_environment_name,
                               r_call_count,
+                              r_hash,
                               r_definition);
         }
 
         std::vector<SEXP> columns({r_function_id,
-                                   r_environment_name,
                                    r_function_name,
-                                   r_hash,
+                                   r_environment_id,
+                                   r_environment_name,
                                    r_call_count,
+                                   r_hash,
                                    r_definition});
 
         std::vector<std::string> names({"function_id",
-                                        "environment_name",
                                         "function_name",
-                                        "hash",
+                                        "environment_id",
+                                        "environment_name",
                                         "call_count",
+                                        "hash",
                                         "definition"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(6);
+        UNPROTECT(7);
 
         return df;
     }
