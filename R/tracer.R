@@ -2,8 +2,8 @@
 #' @export
 #' @importFrom instrumentr trace_code get_exec_stats
 trace_expr <- function(code,
-                         environment = parent.frame(),
-                         quote = TRUE) {
+                       environment = parent.frame(),
+                       quote = TRUE) {
     tracer <- .Call(C_lazr_tracer_create)
 
     if(quote) {

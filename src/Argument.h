@@ -5,12 +5,14 @@
 
 class Argument {
   public:
-    Argument(int parameter_id,
+    Argument(int argument_id,
              int call_id,
-             const std::string& package_name,
+             int function_id,
              const std::string& function_name,
-             int parameter_position,
-             const std::string& parameter_name,
+             int environment_id,
+             const std::string& environment_name,
+             int argument_position,
+             const std::string& argument_name,
              int argument_count,
              int vararg,
              int missing,
@@ -19,12 +21,14 @@ class Argument {
              const std::string& transitive_type = LAZR_NA_STRING,
              const std::string& value_type = LAZR_NA_STRING,
              int preforced = 0)
-        : parameter_id_(parameter_id)
+        : argument_id_(argument_id)
         , call_id_(call_id)
-        , package_name_(package_name)
+        , function_id_(function_id)
         , function_name_(function_name)
-        , parameter_position_(parameter_position)
-        , parameter_name_(parameter_name)
+        , environment_id_(environment_id)
+        , environment_name_(environment_name)
+        , argument_position_(argument_position)
+        , argument_name_(argument_name)
         , argument_count_(argument_count)
         , vararg_(vararg)
         , missing_(missing)
@@ -47,8 +51,12 @@ class Argument {
         cap_force_ = preforced;
     }
 
-    int get_parameter_id() {
-        return parameter_id_;
+    int get_argument_id() {
+        return argument_id_;
+    }
+
+    int get_call_id() {
+        return call_id_;
     }
 
     void force(int force_depth, int companion_position) {
@@ -97,12 +105,14 @@ class Argument {
     }
 
     void to_sexp(int index,
-                 SEXP r_parameter_id,
+                 SEXP r_argument_id,
                  SEXP r_call_id,
-                 SEXP r_package_name,
+                 SEXP r_function_id,
                  SEXP r_function_name,
-                 SEXP r_parameter_position,
-                 SEXP r_parameter_name,
+                 SEXP r_environment_id,
+                 SEXP r_environment_name,
+                 SEXP r_argument_position,
+                 SEXP r_argument_name,
                  SEXP r_argument_count,
                  SEXP r_vararg,
                  SEXP r_missing,
@@ -122,12 +132,14 @@ class Argument {
                  SEXP r_force_source,
                  SEXP r_companion_position,
                  SEXP r_event_sequence) {
-        INTEGER(r_parameter_id)[index] = parameter_id_;
+        INTEGER(r_argument_id)[index] = argument_id_;
         INTEGER(r_call_id)[index] = call_id_;
-        SET_STRING_ELT(r_package_name, index, make_char(package_name_));
+        INTEGER(r_function_id)[index] = function_id_;
         SET_STRING_ELT(r_function_name, index, make_char(function_name_));
-        INTEGER(r_parameter_position)[index] = parameter_position_;
-        SET_STRING_ELT(r_parameter_name, index, make_char(parameter_name_));
+        INTEGER(r_environment_id)[index] = environment_id_;
+        SET_STRING_ELT(r_environment_name, index, make_char(environment_name_));
+        INTEGER(r_argument_position)[index] = argument_position_;
+        SET_STRING_ELT(r_argument_name, index, make_char(argument_name_));
         INTEGER(r_argument_count)[index] = argument_count_;
         LOGICAL(r_vararg)[index] = vararg_;
         LOGICAL(r_missing)[index] = missing_;
@@ -150,12 +162,14 @@ class Argument {
     }
 
   private:
-    int parameter_id_;
+    int argument_id_;
     int call_id_;
-    std::string package_name_;
+    int function_id_;
     std::string function_name_;
-    int parameter_position_;
-    std::string parameter_name_;
+    int environment_id_;
+    std::string environment_name_;
+    int argument_position_;
+    std::string argument_name_;
     int argument_count_;
     int vararg_;
     int missing_;

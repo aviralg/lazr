@@ -26,13 +26,15 @@ void TracingState::finalize(instrumentr_state_t state) {
     SEXP r_calls = PROTECT(tracing_state.get_call_table().to_sexp());
     SEXP r_arguments = PROTECT(tracing_state.get_argument_table().to_sexp());
     SEXP r_functions = PROTECT(tracing_state.get_function_table().to_sexp());
+    SEXP r_environments = PROTECT(tracing_state.get_environment_table().to_sexp());
 
     instrumentr_state_erase(state, "tracing_state", true);
     instrumentr_state_insert(state, "calls", r_calls, true);
     instrumentr_state_insert(state, "arguments", r_arguments, true);
     instrumentr_state_insert(state, "functions", r_functions, true);
+    instrumentr_state_insert(state, "environments", r_environments, true);
 
-    UNPROTECT(3);
+    UNPROTECT(4);
 }
 
 TracingState& TracingState::lookup(instrumentr_state_t state) {

@@ -3,6 +3,7 @@
 
 #include "Rincludes.h"
 #include "CallTable.h"
+#include "EnvironmentTable.h"
 #include "ArgumentTable.h"
 #include "FunctionTable.h"
 #include <instrumentr/instrumentr.h>
@@ -18,6 +19,14 @@ class TracingState {
 
     const CallTable& get_call_table() const {
         return call_table_;
+    }
+
+    EnvironmentTable& get_environment_table() {
+        return environment_table_;
+    }
+
+    const EnvironmentTable& get_environment_table() const {
+        return environment_table_;
     }
 
     ArgumentTable& get_argument_table() {
@@ -44,6 +53,7 @@ class TracingState {
 
   private:
     CallTable call_table_;
+    EnvironmentTable environment_table_;
     ArgumentTable argument_table_;
     FunctionTable function_table_;
 };

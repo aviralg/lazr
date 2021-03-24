@@ -9,18 +9,20 @@ class Call {
   public:
     Call(int call_id,
          int function_id,
-         const std::string& package_name,
-         const std::string& function_name)
+         const std::string& function_name,
+         int environment_id,
+         const std::string& environment_name)
         : call_id_(call_id)
         , function_id_(function_id)
-        , package_name_(package_name)
         , function_name_(function_name)
+        , environment_id_(environment_id)
+        , environment_name_(environment_name)
         , successful_(false)
         , result_type_(LAZR_NA_STRING)
         , force_order_("") {
     }
 
-    int get_call_id() {
+    int get_id() {
         return call_id_;
     }
 
@@ -37,8 +39,8 @@ class Call {
         force_order_.append(std::to_string(position));
     }
 
-    const std::string& get_package_name() const {
-        return package_name_;
+    const std::string& get_environment_name() const {
+        return environment_name_;
     }
 
     const std::string& get_function_name() const {
@@ -48,15 +50,18 @@ class Call {
     void to_sexp(int position,
                  SEXP r_call_id,
                  SEXP r_function_id,
-                 SEXP r_package_name,
                  SEXP r_function_name,
+                 SEXP r_environment_id,
+                 SEXP r_environment_name,
                  SEXP r_successful,
                  SEXP r_result_type,
                  SEXP r_force_order) {
-        INTEGER(r_call_id)[position] = call_id_;
-        INTEGER(r_function_id)[position] = function_id_;
-        SET_STRING_ELT(r_package_name, position, make_char(package_name_));
+        SET_INTEGER_ELT(r_call_id, position, call_id_);
+        SET_INTEGER_ELT(r_function_id, position, function_id_);
         SET_STRING_ELT(r_function_name, position, make_char(function_name_));
+        SET_INTEGER_ELT(r_environment_id, position, environment_id_);
+        SET_STRING_ELT(
+            r_environment_name, position, make_char(environment_name_));
         LOGICAL(r_successful)[position] = successful_;
         SET_STRING_ELT(r_result_type, position, make_char(result_type_));
         SET_STRING_ELT(r_force_order, position, make_char(force_order_));
@@ -65,8 +70,9 @@ class Call {
   private:
     int call_id_;
     int function_id_;
-    const std::string package_name_;
     const std::string function_name_;
+    int environment_id_;
+    const std::string environment_name_;
     bool successful_;
     std::string result_type_;
     std::string force_order_;
