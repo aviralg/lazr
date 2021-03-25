@@ -32,11 +32,6 @@ class EnvironmentTable {
         const std::string env_type =
             instrumentr_environment_type_to_string(type);
 
-        if (env_type == "\240\063") {
-            fprintf(stderr, "reached here\n");
-            while(1);
-        }
-
         const char* name = instrumentr_environment_get_name(environment);
         const std::string env_name(name == NULL ? LAZR_NA_STRING : name);
 

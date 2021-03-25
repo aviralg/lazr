@@ -49,4 +49,27 @@ void promise_substitute_callback(instrumentr_tracer_t tracer,
                                  instrumentr_application_t application,
                                  instrumentr_promise_t promise);
 
+void variable_assign(instrumentr_tracer_t tracer,
+                     instrumentr_callback_t callback,
+                     instrumentr_state_t state,
+                     instrumentr_application_t application,
+                     instrumentr_symbol_t symbol,
+                     instrumentr_value_t value,
+                     instrumentr_environment_t environment);
+
+void variable_define(instrumentr_tracer_t tracer,
+                     instrumentr_callback_t callback,
+                     instrumentr_state_t state,
+                     instrumentr_application_t application,
+                     instrumentr_symbol_t symbol,
+                     instrumentr_value_t value,
+                     instrumentr_environment_t environment);
+
+void variable_remove(instrumentr_tracer_t tracer,
+                     instrumentr_callback_t callback,
+                     instrumentr_state_t state,
+                     instrumentr_application_t application,
+                     instrumentr_symbol_t symbol,
+                     instrumentr_environment_t environment);
+
 #endif /* LAZR_CALLBACKS_H  */

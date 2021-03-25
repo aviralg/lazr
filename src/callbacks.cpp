@@ -353,3 +353,112 @@ void tracing_exit_callback(instrumentr_tracer_t tracer,
                            instrumentr_state_t state) {
     TracingState::finalize(state);
 }
+
+void process_side_effects(instrumentr_state_t state,
+                          instrumentr_environment_t environment,
+                          const std::string& type,
+                          const std::string& varname,
+                          ArgumentTable& argument_table,
+                          EnvironmentTable& environment_table,
+                          SideEffectsTable& se_table) {
+    Environment* env = environment_table.insert(environment);
+
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    bool transitive = false;
+
+    for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (!instrumentr_frame_is_promise(frame)) {
+            continue;
+        }
+
+        instrumentr_promise_t promise = instrumentr_frame_as_promise(frame);
+
+        if (instrumentr_promise_get_type(promise) !=
+            INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+            continue;
+        }
+
+        int t1 = instrumentr_promise_get_birth_time(promise);
+        int t2 = instrumentr_environment_get_birth_time(environment);
+
+        int promise_id = instrumentr_promise_get_id(promise);
+        const std::vector<Argument*>& args = argument_table.lookup(promise_id);
+
+        for (auto& arg: args) {
+            arg->side_effect(type);
+        }
+
+        // if environment was born before the promise then writing to it is a
+        // side effect side effect
+        if (t1 > t2) {
+            int promise_id = instrumentr_promise_get_id(promise);
+
+            int env_id = instrumentr_environment_get_id(environment);
+
+            se_table.insert(type, varname, transitive, promise, env);
+        }
+
+        /* TODO: should it be set iff there is a SE by the topmost promise. */
+        transitive = true;
+    }
+}
+
+void variable_assign(instrumentr_tracer_t tracer,
+                     instrumentr_callback_t callback,
+                     instrumentr_state_t state,
+                     instrumentr_application_t application,
+                     instrumentr_symbol_t symbol,
+                     instrumentr_value_t value,
+                     instrumentr_environment_t environment) {
+    TracingState& tracing_state = TracingState::lookup(state);
+    ArgumentTable& arg_table = tracing_state.get_argument_table();
+    SideEffectsTable& se_table = tracing_state.get_side_effects_table();
+    EnvironmentTable& env_table = tracing_state.get_environment_table();
+
+    instrumentr_char_t charval = instrumentr_symbol_get_name(symbol);
+    std::string varname = instrumentr_char_get_value(charval);
+
+    process_side_effects(
+        state, environment, "asn", varname, arg_table, env_table, se_table);
+}
+
+void variable_define(instrumentr_tracer_t tracer,
+                     instrumentr_callback_t callback,
+                     instrumentr_state_t state,
+                     instrumentr_application_t application,
+                     instrumentr_symbol_t symbol,
+                     instrumentr_value_t value,
+                     instrumentr_environment_t environment) {
+    TracingState& tracing_state = TracingState::lookup(state);
+    ArgumentTable& arg_table = tracing_state.get_argument_table();
+    SideEffectsTable& se_table = tracing_state.get_side_effects_table();
+    EnvironmentTable& env_table = tracing_state.get_environment_table();
+
+    instrumentr_char_t charval = instrumentr_symbol_get_name(symbol);
+    std::string varname = instrumentr_char_get_value(charval);
+
+    process_side_effects(
+        state, environment, "def", varname, arg_table, env_table, se_table);
+}
+
+void variable_remove(instrumentr_tracer_t tracer,
+                     instrumentr_callback_t callback,
+                     instrumentr_state_t state,
+                     instrumentr_application_t application,
+                     instrumentr_symbol_t symbol,
+                     instrumentr_environment_t environment) {
+    TracingState& tracing_state = TracingState::lookup(state);
+    ArgumentTable& arg_table = tracing_state.get_argument_table();
+    SideEffectsTable& se_table = tracing_state.get_side_effects_table();
+    EnvironmentTable& env_table = tracing_state.get_environment_table();
+
+    std::string varname = LAZR_NA_STRING;
+
+    process_side_effects(
+        state, environment, "rem", varname, arg_table, env_table, se_table);
+}

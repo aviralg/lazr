@@ -24,6 +24,14 @@ class Environment {
         return env_name_;
     }
 
+    const std::string& get_type() const {
+        return env_type_;
+    }
+
+    int get_call_id() const {
+        return call_id_;
+    }
+
     void to_sexp(int position,
                  SEXP r_env_id,
                  SEXP r_env_type,

@@ -121,6 +121,7 @@ class ArgumentTable {
         SEXP r_force_source = PROTECT(allocVector(STRSXP, size_));
         SEXP r_companion_position = PROTECT(allocVector(INTSXP, size_));
         SEXP r_event_sequence = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_effect_sequence = PROTECT(allocVector(STRSXP, size_));
 
         int index = 0;
 
@@ -155,7 +156,8 @@ class ArgumentTable {
                                   r_force_depth,
                                   r_force_source,
                                   r_companion_position,
-                                  r_event_sequence);
+                                  r_event_sequence,
+                                  r_effect_sequence);
                 ++index;
             }
         }
@@ -173,7 +175,7 @@ class ArgumentTable {
                                    r_esc_force,         r_esc_meta,
                                    r_esc_lookup,        r_force_depth,
                                    r_force_source,      r_companion_position,
-                                   r_event_sequence});
+                                   r_event_sequence,    r_effect_sequence});
 
         std::vector<std::string> names(
             {"argument_id",       "call_id",
@@ -189,11 +191,11 @@ class ArgumentTable {
              "esc_force",         "esc_meta",
              "esc_lookup",        "force_depth",
              "force_source",      "companion_position",
-             "event_sequence"});
+             "event_sequence",    "effect_sequence"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(27);
+        UNPROTECT(28);
 
         return df;
     }

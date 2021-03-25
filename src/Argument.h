@@ -47,7 +47,8 @@ class Argument {
         , force_depth_(NA_INTEGER)
         , force_source_(LAZR_NA_STRING)
         , companion_position_(NA_INTEGER)
-        , event_sequence_("") {
+        , event_sequence_("")
+        , effect_sequence_("") {
         cap_force_ = preforced;
     }
 
@@ -108,6 +109,24 @@ class Argument {
         add_event_('E');
     }
 
+    void side_effect(const std::string& type) {
+        if (type == "asn") {
+            effect_sequence_.push_back('A');
+        }
+
+        else if (type == "rem") {
+            effect_sequence_.push_back('R');
+        }
+
+        else if (type == "def") {
+            effect_sequence_.push_back('D');
+        }
+
+        else {
+            Rf_error("unexpected side effect type '%s'", type.c_str());
+        }
+    }
+
     void to_sexp(int index,
                  SEXP r_argument_id,
                  SEXP r_call_id,
@@ -135,7 +154,8 @@ class Argument {
                  SEXP r_force_depth,
                  SEXP r_force_source,
                  SEXP r_companion_position,
-                 SEXP r_event_sequence) {
+                 SEXP r_event_sequence,
+                 SEXP r_effect_sequence) {
         INTEGER(r_argument_id)[index] = argument_id_;
         INTEGER(r_call_id)[index] = call_id_;
         INTEGER(r_function_id)[index] = function_id_;
@@ -163,6 +183,7 @@ class Argument {
         SET_STRING_ELT(r_force_source, index, make_char(force_source_));
         INTEGER(r_companion_position)[index] = companion_position_;
         SET_STRING_ELT(r_event_sequence, index, make_char(event_sequence_));
+        SET_STRING_ELT(r_effect_sequence, index, make_char(effect_sequence_));
     }
 
   private:
@@ -193,6 +214,7 @@ class Argument {
     std::string force_source_;
     int companion_position_;
     std::string event_sequence_;
+    std::string effect_sequence_;
 
     void add_event_(char event) {
         event_sequence_.push_back(event);

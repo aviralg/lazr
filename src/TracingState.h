@@ -6,6 +6,7 @@
 #include "EnvironmentTable.h"
 #include "ArgumentTable.h"
 #include "FunctionTable.h"
+#include "SideEffectsTable.h"
 #include <instrumentr/instrumentr.h>
 
 class TracingState {
@@ -45,6 +46,14 @@ class TracingState {
         return function_table_;
     }
 
+    SideEffectsTable& get_side_effects_table() {
+        return se_table_;
+    }
+
+    const SideEffectsTable& get_side_effects_table() const {
+        return se_table_;
+    }
+
     static void initialize(instrumentr_state_t state);
 
     static void finalize(instrumentr_state_t state);
@@ -56,6 +65,7 @@ class TracingState {
     EnvironmentTable environment_table_;
     ArgumentTable argument_table_;
     FunctionTable function_table_;
+    SideEffectsTable se_table_;
 };
 
 #endif /* LAZR_TRACING_STATE_H */
