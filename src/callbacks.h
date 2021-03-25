@@ -79,4 +79,10 @@ void variable_remove(instrumentr_tracer_t tracer,
                      instrumentr_symbol_t symbol,
                      instrumentr_environment_t environment);
 
+void value_finalize(instrumentr_tracer_t tracer,
+                    instrumentr_callback_t callback,
+                    instrumentr_state_t state,
+                    instrumentr_application_t application,
+                    instrumentr_value_t value);
+
 #endif /* LAZR_CALLBACKS_H  */

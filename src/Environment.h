@@ -7,12 +7,10 @@
 class Environment {
   public:
     Environment(int env_id,
-                const std::string& env_type,
-                const std::string& env_name,
                 int call_id)
         : env_id_(env_id)
-        , env_type_(env_type)
-        , env_name_(env_name)
+        , env_type_(LAZR_NA_STRING)
+        , env_name_(LAZR_NA_STRING)
         , call_id_(call_id) {
     }
 
@@ -26,6 +24,14 @@ class Environment {
 
     const std::string& get_type() const {
         return env_type_;
+    }
+
+    void set_name(const char* env_name) {
+        env_name_ = charptr_to_string(env_name);
+    }
+
+    void set_type(const char* env_type) {
+        env_type_ = charptr_to_string(env_type);
     }
 
     int get_call_id() const {
@@ -45,8 +51,8 @@ class Environment {
 
   private:
     int env_id_;
-    const std::string env_type_;
-    const std::string env_name_;
+    std::string env_type_;
+    std::string env_name_;
     int call_id_;
 };
 

@@ -24,4 +24,6 @@ SEXP create_data_frame(const std::vector<std::string>& names,
 
 SEXP make_char(const std::string& input);
 
+std::string charptr_to_string(const char* charptr);
+
 #endif /* LAZR_UTILITIES_H */

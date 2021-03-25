@@ -93,3 +93,7 @@ SEXP create_data_frame(const std::vector<std::string>& names,
 SEXP make_char(const std::string& input) {
     return input == LAZR_NA_STRING ? NA_STRING : mkChar(input.c_str());
 }
+
+std::string charptr_to_string(const char* charptr) {
+    return charptr == nullptr ? LAZR_NA_STRING : std::string(charptr);
+}

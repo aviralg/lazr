@@ -13,17 +13,6 @@ std::string get_sexp_type(SEXP r_value) {
     }
 }
 
-bool promise_check_escaped(instrumentr_call_t call,
-                           Call* call_data,
-                           Argument* argument_data) {
-    if (instrumentr_call_is_dead(call)) {
-        argument_data->escaped();
-        return true;
-    }
-
-    return false;
-}
-
 void builtin_call_entry_callback(instrumentr_tracer_t tracer,
                                  instrumentr_callback_t callback,
                                  instrumentr_state_t state,
@@ -95,7 +84,7 @@ void process_arguments(ArgumentTable& argument_table,
         instrumentr_symbol_t nameval = instrumentr_value_as_symbol(tagval);
 
         const char* argument_name =
-            instrumentr_char_get_value(instrumentr_symbol_get_name(nameval));
+            instrumentr_char_get_element(instrumentr_symbol_get_element(nameval));
 
         instrumentr_value_t argval =
             instrumentr_environment_lookup(call_env, nameval);
@@ -134,7 +123,7 @@ void closure_call_entry_callback(instrumentr_tracer_t tracer,
 
     FunctionTable& function_table = tracing_state.get_function_table();
 
-    Function* function_data = function_table.insert(closure, fun_env_data);
+    Function* function_data = function_table.insert(closure);
 
     function_data->call();
 
@@ -474,8 +463,8 @@ void variable_assign(instrumentr_tracer_t tracer,
     SideEffectsTable& se_table = tracing_state.get_side_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
-    instrumentr_char_t charval = instrumentr_symbol_get_name(symbol);
-    std::string varname = instrumentr_char_get_value(charval);
+    instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
+    std::string varname = instrumentr_char_get_element(charval);
 
     process_side_effects(
         state, environment, "asn", varname, arg_table, env_table, se_table);
@@ -493,8 +482,8 @@ void variable_define(instrumentr_tracer_t tracer,
     SideEffectsTable& se_table = tracing_state.get_side_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
-    instrumentr_char_t charval = instrumentr_symbol_get_name(symbol);
-    std::string varname = instrumentr_char_get_value(charval);
+    instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
+    std::string varname = instrumentr_char_get_element(charval);
 
     process_side_effects(
         state, environment, "def", varname, arg_table, env_table, se_table);
@@ -515,4 +504,43 @@ void variable_remove(instrumentr_tracer_t tracer,
 
     process_side_effects(
         state, environment, "rem", varname, arg_table, env_table, se_table);
+}
+
+void value_finalize(instrumentr_tracer_t tracer,
+                    instrumentr_callback_t callback,
+                    instrumentr_state_t state,
+                    instrumentr_application_t application,
+                    instrumentr_value_t value) {
+    return;
+
+    TracingState& tracing_state = TracingState::lookup(state);
+
+    if (instrumentr_value_is_closure(value)) {
+        instrumentr_closure_t closure = instrumentr_value_as_closure(value);
+
+        FunctionTable& function_table = tracing_state.get_function_table();
+
+        int id = instrumentr_closure_get_id(closure);
+        Function* fun = function_table.insert(closure);
+
+        fun->set_name(instrumentr_closure_get_name(closure));
+    }
+
+    else if (instrumentr_value_is_environment(value)) {
+        instrumentr_environment_t environment =
+            instrumentr_value_as_environment(value);
+
+        EnvironmentTable& environment_table =
+            tracing_state.get_environment_table();
+
+        int id = instrumentr_environment_get_id(environment);
+        Environment* env = environment_table.insert(environment);
+
+        env->set_name(instrumentr_environment_get_name(environment));
+
+        instrumentr_environment_type_t type =
+            instrumentr_environment_get_type(environment);
+        const char* env_type = instrumentr_environment_type_to_string(type);
+        env->set_type(env_type);
+    }
 }

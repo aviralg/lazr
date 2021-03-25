@@ -26,16 +26,10 @@ class EnvironmentTable {
             return iter->second;
         }
 
+        int call_id = NA_INTEGER;
+
         instrumentr_environment_type_t type =
             instrumentr_environment_get_type(environment);
-
-        const std::string env_type =
-            instrumentr_environment_type_to_string(type);
-
-        const char* name = instrumentr_environment_get_name(environment);
-        const std::string env_name(name == NULL ? LAZR_NA_STRING : name);
-
-        int call_id = NA_INTEGER;
 
         if (type == INSTRUMENTR_ENVIRONMENT_TYPE_CALL) {
             instrumentr_call_t call =
@@ -43,7 +37,13 @@ class EnvironmentTable {
             call_id = instrumentr_call_get_id(call);
         }
 
-        Environment* env = new Environment(env_id, env_type, env_name, call_id);
+        Environment* env = new Environment(env_id, call_id);
+
+        const char* env_name = instrumentr_environment_get_name(environment);
+        env->set_name(env_name);
+
+        const char* env_type = instrumentr_environment_type_to_string(type);
+        env->set_type(env_type);
 
         auto result = table_.insert({env_id, env});
         return result.first->second;

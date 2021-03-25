@@ -18,17 +18,19 @@ class FunctionTable {
         table_.clear();
     }
 
-    Function* insert(instrumentr_closure_t closure, Environment* environment) {
+    Function* insert(instrumentr_closure_t closure) {
         int function_id = instrumentr_closure_get_id(closure);
+
+        instrumentr_environment_t environment =
+            instrumentr_closure_get_environment(closure);
+
+        int environment_id = instrumentr_environment_get_id(environment);
 
         auto iter = table_.find(function_id);
 
         if (iter != table_.end()) {
             return iter->second;
         }
-
-        const char* name = instrumentr_closure_get_name(closure);
-        const std::string function_name(name == NULL ? LAZR_NA_STRING : name);
 
         SEXP r_definition = instrumentr_closure_get_sexp(closure);
 
@@ -38,16 +40,14 @@ class FunctionTable {
 
         std::string hash = instrumentr_compute_hash(definition);
 
-        Function* function_data = new Function(function_id,
-                                               function_name,
-                                               environment->get_id(),
-                                               environment->get_name(),
-                                               hash,
-                                               definition);
+        Function* function =
+            new Function(function_id, environment_id, hash, definition);
 
-        auto result = table_.insert({function_id, function_data});
+        table_.insert({function_id, function});
 
-        return result.first->second;
+        function->set_name(instrumentr_closure_get_name(closure));
+
+        return function;
     }
 
     Function* lookup(int function_id) {
@@ -61,7 +61,6 @@ class FunctionTable {
         SEXP r_function_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_function_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_environment_id = PROTECT(allocVector(INTSXP, size));
-        SEXP r_environment_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_call_count = PROTECT(allocVector(INTSXP, size));
         SEXP r_hash = PROTECT(allocVector(STRSXP, size));
         SEXP r_definition = PROTECT(allocVector(STRSXP, size));
@@ -75,7 +74,6 @@ class FunctionTable {
                               r_function_id,
                               r_function_name,
                               r_environment_id,
-                              r_environment_name,
                               r_call_count,
                               r_hash,
                               r_definition);
@@ -84,7 +82,6 @@ class FunctionTable {
         std::vector<SEXP> columns({r_function_id,
                                    r_function_name,
                                    r_environment_id,
-                                   r_environment_name,
                                    r_call_count,
                                    r_hash,
                                    r_definition});
@@ -92,14 +89,13 @@ class FunctionTable {
         std::vector<std::string> names({"function_id",
                                         "function_name",
                                         "environment_id",
-                                        "environment_name",
                                         "call_count",
                                         "hash",
                                         "definition"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(7);
+        UNPROTECT(6);
 
         return df;
     }
