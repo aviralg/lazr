@@ -339,6 +339,12 @@ void promise_force_entry_callback(instrumentr_tracer_t tracer,
 
         Call* call_data = call_table.lookup(call_id);
 
+        /* NOTE: the order of these statements is important.
+         force position changes after adding to call*/
+        int force_position = call_data->get_force_position();
+
+        argument->set_force_position(force_position);
+
         call_data->force_argument(argument->get_position());
 
         /* NOTE: first check escaped */

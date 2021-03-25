@@ -101,6 +101,7 @@ class ArgumentTable {
         SEXP r_environment_id = PROTECT(allocVector(INTSXP, size_));
         SEXP r_environment_name = PROTECT(allocVector(STRSXP, size_));
         SEXP r_argument_position = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_force_position = PROTECT(allocVector(INTSXP, size_));
         SEXP r_argument_name = PROTECT(allocVector(STRSXP, size_));
         SEXP r_argument_count = PROTECT(allocVector(INTSXP, size_));
         SEXP r_vararg = PROTECT(allocVector(LGLSXP, size_));
@@ -138,6 +139,7 @@ class ArgumentTable {
                                   r_environment_id,
                                   r_environment_name,
                                   r_argument_position,
+                                  r_force_position,
                                   r_argument_name,
                                   r_argument_count,
                                   r_vararg,
@@ -171,6 +173,7 @@ class ArgumentTable {
                                    r_environment_id,
                                    r_environment_name,
                                    r_argument_position,
+                                   r_force_position,
                                    r_argument_name,
                                    r_argument_count,
                                    r_vararg,
@@ -201,6 +204,7 @@ class ArgumentTable {
                                         "environment_id",
                                         "environment_name",
                                         "argument_position",
+                                        "force_position",
                                         "argument_name",
                                         "argument_count",
                                         "vararg",
@@ -226,7 +230,7 @@ class ArgumentTable {
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(29);
+        UNPROTECT(30);
 
         return df;
     }

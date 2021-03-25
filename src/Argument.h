@@ -28,6 +28,7 @@ class Argument {
         , environment_id_(environment_id)
         , environment_name_(environment_name)
         , argument_position_(argument_position)
+        , force_position_(NA_INTEGER)
         , argument_name_(argument_name)
         , argument_count_(argument_count)
         , vararg_(vararg)
@@ -63,6 +64,10 @@ class Argument {
 
     int get_position() {
         return argument_position_;
+    }
+
+    void set_force_position(int force_position) {
+        force_position_ = force_position;
     }
 
     void force(int force_depth, int companion_position) {
@@ -143,6 +148,7 @@ class Argument {
                  SEXP r_environment_id,
                  SEXP r_environment_name,
                  SEXP r_argument_position,
+                 SEXP r_force_position,
                  SEXP r_argument_name,
                  SEXP r_argument_count,
                  SEXP r_vararg,
@@ -172,6 +178,7 @@ class Argument {
         INTEGER(r_environment_id)[index] = environment_id_;
         SET_STRING_ELT(r_environment_name, index, make_char(environment_name_));
         INTEGER(r_argument_position)[index] = argument_position_;
+        INTEGER(r_force_position)[index] = force_position_;
         SET_STRING_ELT(r_argument_name, index, make_char(argument_name_));
         INTEGER(r_argument_count)[index] = argument_count_;
         LOGICAL(r_vararg)[index] = vararg_;
@@ -205,6 +212,7 @@ class Argument {
     int environment_id_;
     std::string environment_name_;
     int argument_position_;
+    int force_position_;
     std::string argument_name_;
     int argument_count_;
     int vararg_;

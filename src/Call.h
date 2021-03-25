@@ -19,7 +19,7 @@ class Call {
         , environment_name_(environment_name)
         , successful_(false)
         , result_type_(LAZR_NA_STRING)
-        , force_order_("")
+        , force_order_({})
         , exit_(false) {
     }
 
@@ -38,11 +38,11 @@ class Call {
     }
 
     void force_argument(int position) {
-        if (!force_order_.empty()) {
-            force_order_.append(",");
-        }
+        force_order_.push_back(position);
+    }
 
-        force_order_.append(std::to_string(position));
+    int get_force_position() {
+        return force_order_.size();
     }
 
     const std::string& get_environment_name() const {
@@ -70,7 +70,10 @@ class Call {
             r_environment_name, position, make_char(environment_name_));
         LOGICAL(r_successful)[position] = successful_;
         SET_STRING_ELT(r_result_type, position, make_char(result_type_));
-        SET_STRING_ELT(r_force_order, position, make_char(force_order_));
+
+        std::string force_order_str = intvec_to_string_(force_order_);
+        SET_STRING_ELT(
+            r_force_order, position, make_char(force_order_str.c_str()));
     }
 
   private:
@@ -81,8 +84,24 @@ class Call {
     const std::string environment_name_;
     bool successful_;
     std::string result_type_;
-    std::string force_order_;
+    std::vector<int> force_order_;
     bool exit_;
+
+    std::string intvec_to_string_(const std::vector<int>& vec) {
+        std::string str;
+        int size = vec.size();
+
+        for (int i = 0; i < size - 1; ++i) {
+            str.append(std::to_string(vec[i]));
+            str.append("|");
+        }
+
+        if (size != 0) {
+            str.append(std::to_string(vec[size - 1]));
+        }
+
+        return str;
+    }
 };
 
 #endif /* LAZR_CALL_H */
