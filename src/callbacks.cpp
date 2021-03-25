@@ -83,8 +83,8 @@ void process_arguments(ArgumentTable& argument_table,
 
         instrumentr_symbol_t nameval = instrumentr_value_as_symbol(tagval);
 
-        const char* argument_name =
-            instrumentr_char_get_element(instrumentr_symbol_get_element(nameval));
+        const char* argument_name = instrumentr_char_get_element(
+            instrumentr_symbol_get_element(nameval));
 
         instrumentr_value_t argval =
             instrumentr_environment_lookup(call_env, nameval);
@@ -511,8 +511,6 @@ void value_finalize(instrumentr_tracer_t tracer,
                     instrumentr_state_t state,
                     instrumentr_application_t application,
                     instrumentr_value_t value) {
-    return;
-
     TracingState& tracing_state = TracingState::lookup(state);
 
     if (instrumentr_value_is_closure(value)) {
@@ -521,9 +519,11 @@ void value_finalize(instrumentr_tracer_t tracer,
         FunctionTable& function_table = tracing_state.get_function_table();
 
         int id = instrumentr_closure_get_id(closure);
-        Function* fun = function_table.insert(closure);
+        Function* fun = function_table.lookup(id);
 
-        fun->set_name(instrumentr_closure_get_name(closure));
+        if (fun != NULL) {
+            fun->set_name(instrumentr_closure_get_name(closure));
+        }
     }
 
     else if (instrumentr_value_is_environment(value)) {
@@ -534,13 +534,19 @@ void value_finalize(instrumentr_tracer_t tracer,
             tracing_state.get_environment_table();
 
         int id = instrumentr_environment_get_id(environment);
-        Environment* env = environment_table.insert(environment);
+        Environment* env = environment_table.lookup(id);
 
-        env->set_name(instrumentr_environment_get_name(environment));
+        if (env != NULL) {
+            env->set_name(instrumentr_environment_get_name(environment));
 
-        instrumentr_environment_type_t type =
-            instrumentr_environment_get_type(environment);
-        const char* env_type = instrumentr_environment_type_to_string(type);
-        env->set_type(env_type);
+            instrumentr_environment_type_t type =
+                instrumentr_environment_get_type(environment);
+            const char* env_type = instrumentr_environment_type_to_string(type);
+            env->set_type(env_type);
+
+            const char* env_name =
+                instrumentr_environment_get_name(environment);
+            env->set_name(env_name);
+        }
     }
 }

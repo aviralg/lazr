@@ -13,6 +13,7 @@ class Function {
              const std::string& definition)
         : function_id_(function_id)
         , function_name_(LAZR_NA_STRING)
+        , parent_id_(NA_INTEGER)
         , environment_id_(environment_id)
         , call_count_(0)
         , hash_(hash)
@@ -21,6 +22,10 @@ class Function {
 
     int get_id() {
         return function_id_;
+    }
+
+    void set_parent_id(int parent_id) {
+        parent_id_ = parent_id;
     }
 
     const std::string& get_name() const {
@@ -38,12 +43,14 @@ class Function {
     void to_sexp(int index,
                  SEXP r_function_id,
                  SEXP r_function_name,
+                 SEXP r_parent_id,
                  SEXP r_environment_id,
                  SEXP r_call_count,
                  SEXP r_hash,
                  SEXP r_definition) {
         SET_INTEGER_ELT(r_function_id, index, function_id_);
         SET_STRING_ELT(r_function_name, index, make_char(function_name_));
+        SET_INTEGER_ELT(r_parent_id, index, parent_id_);
         SET_INTEGER_ELT(r_environment_id, index, environment_id_);
         SET_INTEGER_ELT(r_call_count, index, call_count_);
         SET_STRING_ELT(r_hash, index, make_char(hash_));
@@ -53,6 +60,7 @@ class Function {
   private:
     int function_id_;
     std::string function_name_;
+    int parent_id_;
     int environment_id_;
     int call_count_;
     std::string hash_;
