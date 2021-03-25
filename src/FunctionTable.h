@@ -61,12 +61,13 @@ class FunctionTable {
     }
 
     SEXP to_sexp() {
-        fix_names_();
+        infer_qualified_names_();
 
         int size = table_.size();
 
         SEXP r_function_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_function_name = PROTECT(allocVector(STRSXP, size));
+        SEXP r_qual_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_parent_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_environment_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_call_count = PROTECT(allocVector(INTSXP, size));
@@ -74,6 +75,7 @@ class FunctionTable {
         SEXP r_definition = PROTECT(allocVector(STRSXP, size));
 
         int index = 0;
+
         for (auto iter = table_.begin(); iter != table_.end();
              ++iter, ++index) {
             Function* function = iter->second;
@@ -81,6 +83,7 @@ class FunctionTable {
             function->to_sexp(index,
                               r_function_id,
                               r_function_name,
+                              r_qual_name,
                               r_parent_id,
                               r_environment_id,
                               r_call_count,
@@ -90,6 +93,7 @@ class FunctionTable {
 
         std::vector<SEXP> columns({r_function_id,
                                    r_function_name,
+                                   r_qual_name,
                                    r_parent_id,
                                    r_environment_id,
                                    r_call_count,
@@ -98,6 +102,7 @@ class FunctionTable {
 
         std::vector<std::string> names({"function_id",
                                         "function_name",
+                                        "qual_name",
                                         "parent_id",
                                         "environment_id",
                                         "call_count",
@@ -106,9 +111,52 @@ class FunctionTable {
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(7);
+        UNPROTECT(8);
 
         return df;
+    }
+
+    void infer_qualified_names_() {
+        for (auto iter = table_.begin(); iter != table_.end(); ++iter) {
+            int id = iter->first;
+            Function* fun = iter->second;
+            infer_qualified_name_helper_(fun);
+        }
+    }
+
+    std::string infer_qualified_name_helper_(Function* fun) {
+        /* if function does not have its own name, no use computing
+         * qualified parent's name. */
+        if (!fun->has_name()) {
+            fun->set_qualified_name(LAZR_NA_STRING);
+            return LAZR_NA_STRING;
+        }
+
+        /* if function already has a qualified name, then don't compute it
+         * again  */
+        if (fun->has_qualified_name()) {
+            return fun->get_qualified_name();
+        }
+
+        std::string fun_name = fun->get_name();
+
+        if (fun->has_parent()) {
+            int parent_id = fun->get_parent_id();
+
+            Function* parent = lookup(parent_id);
+
+            std::string parent_name = infer_qualified_name_helper_(parent);
+
+            if (parent_name == LAZR_NA_STRING) {
+                fun_name = LAZR_NA_STRING;
+            } else {
+                fun_name = parent_name + "::" + fun_name;
+            }
+        }
+
+        fun->set_qualified_name(fun_name);
+
+        return fun_name;
     }
 
   private:
