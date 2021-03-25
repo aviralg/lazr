@@ -122,6 +122,7 @@ class ArgumentTable {
         SEXP r_companion_position = PROTECT(allocVector(INTSXP, size_));
         SEXP r_event_sequence = PROTECT(allocVector(STRSXP, size_));
         SEXP r_effect_sequence = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_reflection_sequence = PROTECT(allocVector(STRSXP, size_));
 
         int index = 0;
 
@@ -157,45 +158,75 @@ class ArgumentTable {
                                   r_force_source,
                                   r_companion_position,
                                   r_event_sequence,
-                                  r_effect_sequence);
+                                  r_effect_sequence,
+                                  r_reflection_sequence);
                 ++index;
             }
         }
 
-        std::vector<SEXP> columns({r_argument_id,       r_call_id,
-                                   r_function_id,       r_function_name,
-                                   r_environment_id,    r_environment_name,
-                                   r_argument_position, r_argument_name,
-                                   r_argument_count,    r_vararg,
-                                   r_missing,           r_argument_type,
-                                   r_expression_type,   r_transitive_type,
-                                   r_value_type,        r_preforced,
-                                   r_cap_force,         r_cap_meta,
-                                   r_cap_lookup,        r_escaped,
-                                   r_esc_force,         r_esc_meta,
-                                   r_esc_lookup,        r_force_depth,
-                                   r_force_source,      r_companion_position,
-                                   r_event_sequence,    r_effect_sequence});
+        std::vector<SEXP> columns({r_argument_id,
+                                   r_call_id,
+                                   r_function_id,
+                                   r_function_name,
+                                   r_environment_id,
+                                   r_environment_name,
+                                   r_argument_position,
+                                   r_argument_name,
+                                   r_argument_count,
+                                   r_vararg,
+                                   r_missing,
+                                   r_argument_type,
+                                   r_expression_type,
+                                   r_transitive_type,
+                                   r_value_type,
+                                   r_preforced,
+                                   r_cap_force,
+                                   r_cap_meta,
+                                   r_cap_lookup,
+                                   r_escaped,
+                                   r_esc_force,
+                                   r_esc_meta,
+                                   r_esc_lookup,
+                                   r_force_depth,
+                                   r_force_source,
+                                   r_companion_position,
+                                   r_event_sequence,
+                                   r_effect_sequence,
+                                   r_reflection_sequence});
 
-        std::vector<std::string> names(
-            {"argument_id",       "call_id",
-             "function_id",       "function_name",
-             "environment_id",    "environment_name",
-             "argument_position", "argument_name",
-             "argument_count",    "vararg",
-             "missing",           "argument_type",
-             "expression_type",   "transitive_type",
-             "value_type",        "preforced",
-             "cap_force",         "cap_meta",
-             "cap_lookup",        "escaped",
-             "esc_force",         "esc_meta",
-             "esc_lookup",        "force_depth",
-             "force_source",      "companion_position",
-             "event_sequence",    "effect_sequence"});
+        std::vector<std::string> names({"argument_id",
+                                        "call_id",
+                                        "function_id",
+                                        "function_name",
+                                        "environment_id",
+                                        "environment_name",
+                                        "argument_position",
+                                        "argument_name",
+                                        "argument_count",
+                                        "vararg",
+                                        "missing",
+                                        "argument_type",
+                                        "expression_type",
+                                        "transitive_type",
+                                        "value_type",
+                                        "preforced",
+                                        "cap_force",
+                                        "cap_meta",
+                                        "cap_lookup",
+                                        "escaped",
+                                        "esc_force",
+                                        "esc_meta",
+                                        "esc_lookup",
+                                        "force_depth",
+                                        "force_source",
+                                        "companion_position",
+                                        "event_sequence",
+                                        "effect_sequence",
+                                        "reflection_sequence"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(28);
+        UNPROTECT(29);
 
         return df;
     }

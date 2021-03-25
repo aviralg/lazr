@@ -25,6 +25,13 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
                                 instrumentr_closure_t closure,
                                 instrumentr_call_t call);
 
+void builtin_call_entry_callback(instrumentr_tracer_t tracer,
+                                 instrumentr_callback_t callback,
+                                 instrumentr_state_t state,
+                                 instrumentr_application_t application,
+                                 instrumentr_builtin_t builtin,
+                                 instrumentr_call_t call);
+
 void promise_force_entry_callback(instrumentr_tracer_t tracer,
                                   instrumentr_callback_t callback,
                                   instrumentr_state_t state,

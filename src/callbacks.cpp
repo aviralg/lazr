@@ -24,6 +24,56 @@ bool promise_check_escaped(instrumentr_call_t call,
     return false;
 }
 
+void builtin_call_entry_callback(instrumentr_tracer_t tracer,
+                                 instrumentr_callback_t callback,
+                                 instrumentr_state_t state,
+                                 instrumentr_application_t application,
+                                 instrumentr_builtin_t builtin,
+                                 instrumentr_call_t call) {
+    TracingState& tracing_state = TracingState::lookup(state);
+
+    ArgumentTable& arg_table = tracing_state.get_argument_table();
+
+    std::string name = instrumentr_builtin_get_name(builtin);
+
+    /* NOTE: sys.status calls 3 of these functions so it is not added to the
+     * list  */
+    if (name != "sys.parent" && name != "sys.call" && name != "sys.frame" &&
+        name != "sys.nframe" && name != "sys.calls" && name != "sys.frames" &&
+        name != "sys.parents" && name != "sys.function" &&
+        name != "parent.frame" && name != "sys.on.exit" &&
+        name != "as.environment" && name != "pos.to.env") {
+        return;
+    }
+
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (!instrumentr_frame_is_promise(frame)) {
+            continue;
+        }
+
+        instrumentr_promise_t promise = instrumentr_frame_as_promise(frame);
+
+        if (instrumentr_promise_get_type(promise) !=
+            INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+            continue;
+        }
+
+        int promise_id = instrumentr_promise_get_id(promise);
+
+        const std::vector<Argument*>& args = arg_table.lookup(promise_id);
+
+        for (auto& arg: args) {
+            arg->reflection(name);
+        }
+    }
+}
+
 void process_arguments(ArgumentTable& argument_table,
                        instrumentr_call_t call,
                        instrumentr_closure_t closure,
@@ -150,19 +200,16 @@ void promise_substitute_callback(instrumentr_tracer_t tracer,
         instrumentr_promise_get_calls(promise);
 
     for (Argument* argument: arguments) {
-        for (instrumentr_call_t call: calls) {
-            int call_id = instrumentr_call_get_id(call);
+        int call_id = argument->get_call_id();
 
-            if (call_id != argument->get_call_id()) {
-                continue;
-            }
+        Call* call_data = call_table.lookup(call_id);
 
-            Call* call_data = call_table.lookup(call_id);
-
-            promise_check_escaped(call, call_data, argument);
-
-            argument->metaprogram();
+        /* NOTE: first check escaped then lookup */
+        if (call_data->has_exited()) {
+            argument->escaped();
         }
+
+        argument->metaprogram();
     }
 }
 
@@ -386,24 +433,25 @@ void process_side_effects(instrumentr_state_t state,
         int t1 = instrumentr_promise_get_birth_time(promise);
         int t2 = instrumentr_environment_get_birth_time(environment);
 
-        int promise_id = instrumentr_promise_get_id(promise);
-        const std::vector<Argument*>& args = argument_table.lookup(promise_id);
-
-        for (auto& arg: args) {
-            arg->side_effect(type);
-        }
-
-        // if environment was born before the promise then writing to it is a
-        // side effect side effect
+        // if environment was born before the promise then writing to it is
+        // a side effect side effect
         if (t1 > t2) {
             int promise_id = instrumentr_promise_get_id(promise);
 
             int env_id = instrumentr_environment_get_id(environment);
 
             se_table.insert(type, varname, transitive, promise, env);
+
+            const std::vector<Argument*>& args =
+                argument_table.lookup(promise_id);
+
+            for (auto& arg: args) {
+                arg->side_effect(type);
+            }
         }
 
-        /* TODO: should it be set iff there is a SE by the topmost promise. */
+        /* TODO: should it be set iff there is a SE by the topmost promise.
+         */
         transitive = true;
     }
 }
