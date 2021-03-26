@@ -471,11 +471,11 @@ void process_writes(instrumentr_state_t state,
             continue;
         }
 
-        int t1 = instrumentr_promise_get_birth_time(promise);
+        int t1 = instrumentr_promise_get_force_entry_time(promise);
         int t2 = instrumentr_environment_get_birth_time(environment);
 
-        // if environment was born before the promise then writing to it is
-        // a side effect side effect
+        // if promise is forced after the environment it is writing to is born
+        // then the write is a non-local side effect
         if (t1 > t2) {
             int promise_id = instrumentr_promise_get_id(promise);
 
@@ -491,7 +491,7 @@ void process_writes(instrumentr_state_t state,
             }
         }
 
-        /* TODO: should it be set iff there is a SE by the topmost promise.
+        /* TODO: should it be set iff there is a write by the topmost promise.
          */
         transitive = true;
     }
