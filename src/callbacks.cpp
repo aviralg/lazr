@@ -56,6 +56,9 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
             continue;
         }
 
+        /* at this point, we are inside an argument promise which does
+         * reflective environment operation. */
+
         int promise_id = instrumentr_promise_get_id(promise);
 
         const std::vector<Argument*>& args = arg_table.lookup(promise_id);
@@ -471,17 +474,35 @@ void process_reads(instrumentr_state_t state,
             continue;
         }
 
+        int promise_id = instrumentr_promise_get_id(promise);
+
+        /* if transitive is set, then the promise directly responsible for the
+         * effect has already been found and handled. All other promises on the
+         * stack are transitively responsible for forcing it and have to be made
+         * lazy. */
+        if (transitive) {
+            const std::vector<Argument*>& args =
+                argument_table.lookup(promise_id);
+
+            for (auto& arg: args) {
+                arg->side_effect(type, transitive);
+            }
+
+            /* loop back to next promise on the stack so it can be made
+             * responsible for transitive read. */
+            continue;
+        }
+
         int t1 = instrumentr_promise_get_birth_time(promise);
         int t2 = instrumentr_environment_get_last_write_time(environment);
         int t3 = instrumentr_promise_get_force_entry_time(promise);
 
         // This means the environment has been modified after the promise is
-        // created but before it is forced and now during forcing the promise is
-        // reading from it. Since this read can potentially be from the modified
-        // location, we should mark it as non local and make the argument lazy.
+        // created but before it is forced and while forcing, this promise is
+        // reading from the environment. Since this read can potentially be from
+        // the modified location, we should mark it as non local and make the
+        // argument lazy.
         if (t2 > t1 && t2 < t3) {
-            int promise_id = instrumentr_promise_get_id(promise);
-
             int env_id = instrumentr_environment_get_id(environment);
 
             effects_table.insert(type, varname, transitive, promise, env);
@@ -549,13 +570,31 @@ void process_writes(instrumentr_state_t state,
             continue;
         }
 
+        int promise_id = instrumentr_promise_get_id(promise);
+
+        /* if transitive is set, then the promise directly responsible for the
+         * effect has already been found and handled. All other promises on the
+         * stack are transitively responsible for forcing it and have to be made
+         * lazy. */
+        if (transitive) {
+            const std::vector<Argument*>& args =
+                argument_table.lookup(promise_id);
+
+            for (auto& arg: args) {
+                arg->side_effect(type, transitive);
+            }
+
+            /* loop back to next promise on the stack so it can be made
+             * responsible for transitive write. */
+            continue;
+        }
+
         int t1 = instrumentr_promise_get_force_entry_time(promise);
         int t2 = instrumentr_environment_get_birth_time(environment);
 
         // if promise is forced after the environment it is writing to is born
         // then the write is a non-local side effect
         if (t1 > t2) {
-            int promise_id = instrumentr_promise_get_id(promise);
 
             int env_id = instrumentr_environment_get_id(environment);
 
