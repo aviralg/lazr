@@ -19,9 +19,9 @@ class FunctionTable {
     }
 
     Function* insert(instrumentr_closure_t closure) {
-        int function_id = instrumentr_closure_get_id(closure);
+        int fun_id = instrumentr_closure_get_id(closure);
 
-        auto iter = table_.find(function_id);
+        auto iter = table_.find(fun_id);
 
         if (iter != table_.end()) {
             return iter->second;
@@ -30,20 +30,20 @@ class FunctionTable {
         instrumentr_environment_t environment =
             instrumentr_closure_get_environment(closure);
 
-        int environment_id = instrumentr_environment_get_id(environment);
+        int fun_env_id = instrumentr_environment_get_id(environment);
 
-        SEXP r_definition = instrumentr_closure_get_sexp(closure);
+        SEXP r_fun_def = instrumentr_closure_get_sexp(closure);
 
-        std::vector<std::string> definitions =
-            instrumentr_sexp_to_string(r_definition, true);
-        std::string definition = definitions.front();
+        std::vector<std::string> fun_defs =
+            instrumentr_sexp_to_string(r_fun_def, true);
+        std::string fun_def = fun_defs.front();
 
-        std::string hash = instrumentr_compute_hash(definition);
+        std::string fun_hash = instrumentr_compute_hash(fun_def);
 
         Function* function =
-            new Function(function_id, environment_id, hash, definition);
+            new Function(fun_id, fun_env_id, fun_hash, fun_def);
 
-        table_.insert({function_id, function});
+        table_.insert({fun_id, function});
 
         function->set_name(instrumentr_closure_get_name(closure));
 
@@ -55,8 +55,8 @@ class FunctionTable {
         return function;
     }
 
-    Function* lookup(int function_id) {
-        auto result = table_.find(function_id);
+    Function* lookup(int fun_id) {
+        auto result = table_.find(fun_id);
         return result == table_.end() ? nullptr : result->second;
     }
 
@@ -65,14 +65,14 @@ class FunctionTable {
 
         int size = table_.size();
 
-        SEXP r_function_id = PROTECT(allocVector(INTSXP, size));
-        SEXP r_function_name = PROTECT(allocVector(STRSXP, size));
+        SEXP r_fun_id = PROTECT(allocVector(INTSXP, size));
+        SEXP r_fun_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_qual_name = PROTECT(allocVector(STRSXP, size));
-        SEXP r_parent_id = PROTECT(allocVector(INTSXP, size));
-        SEXP r_environment_id = PROTECT(allocVector(INTSXP, size));
+        SEXP r_parent_fun_id = PROTECT(allocVector(INTSXP, size));
+        SEXP r_fun_env_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_call_count = PROTECT(allocVector(INTSXP, size));
-        SEXP r_hash = PROTECT(allocVector(STRSXP, size));
-        SEXP r_definition = PROTECT(allocVector(STRSXP, size));
+        SEXP r_fun_hash = PROTECT(allocVector(STRSXP, size));
+        SEXP r_fun_def = PROTECT(allocVector(STRSXP, size));
 
         int index = 0;
 
@@ -81,33 +81,33 @@ class FunctionTable {
             Function* function = iter->second;
 
             function->to_sexp(index,
-                              r_function_id,
-                              r_function_name,
+                              r_fun_id,
+                              r_fun_name,
                               r_qual_name,
-                              r_parent_id,
-                              r_environment_id,
+                              r_parent_fun_id,
+                              r_fun_env_id,
                               r_call_count,
-                              r_hash,
-                              r_definition);
+                              r_fun_hash,
+                              r_fun_def);
         }
 
-        std::vector<SEXP> columns({r_function_id,
-                                   r_function_name,
+        std::vector<SEXP> columns({r_fun_id,
+                                   r_fun_name,
                                    r_qual_name,
-                                   r_parent_id,
-                                   r_environment_id,
+                                   r_parent_fun_id,
+                                   r_fun_env_id,
                                    r_call_count,
-                                   r_hash,
-                                   r_definition});
+                                   r_fun_hash,
+                                   r_fun_def});
 
-        std::vector<std::string> names({"function_id",
-                                        "function_name",
+        std::vector<std::string> names({"fun_id",
+                                        "fun_name",
                                         "qual_name",
-                                        "parent_id",
-                                        "environment_id",
+                                        "parent_fun_id",
+                                        "fun_env_id",
                                         "call_count",
-                                        "hash",
-                                        "definition"});
+                                        "fun_hash",
+                                        "fun_def"});
 
         SEXP df = create_data_frame(names, columns);
 
@@ -141,9 +141,9 @@ class FunctionTable {
         std::string fun_name = fun->get_name();
 
         if (fun->has_parent()) {
-            int parent_id = fun->get_parent_id();
+            int parent_fun_id = fun->get_parent_id();
 
-            Function* parent = lookup(parent_id);
+            Function* parent = lookup(parent_fun_id);
 
             std::string parent_name = infer_qualified_name_helper_(parent);
 

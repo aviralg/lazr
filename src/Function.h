@@ -7,46 +7,46 @@
 
 class Function {
   public:
-    Function(int function_id,
-             int environment_id,
-             const std::string& hash,
-             const std::string& definition)
-        : function_id_(function_id)
-        , function_name_(LAZR_NA_STRING)
+    Function(int fun_id,
+             int fun_env_id,
+             const std::string& fun_hash,
+             const std::string& fun_def)
+        : fun_id_(fun_id)
+        , fun_name_(LAZR_NA_STRING)
         , qual_name_(LAZR_NA_STRING)
-        , parent_id_(NA_INTEGER)
-        , environment_id_(environment_id)
+        , parent_fun_id_(NA_INTEGER)
+        , fun_env_id_(fun_env_id)
         , call_count_(0)
-        , hash_(hash)
-        , definition_(definition) {
+        , fun_hash_(fun_hash)
+        , fun_def_(fun_def) {
     }
 
     int get_id() {
-        return function_id_;
+        return fun_id_;
     }
 
-    void set_parent_id(int parent_id) {
-        parent_id_ = parent_id;
+    void set_parent_id(int parent_fun_id) {
+        parent_fun_id_ = parent_fun_id;
     }
 
     int get_parent_id() const {
-        return parent_id_;
+        return parent_fun_id_;
     }
 
     bool has_parent() const {
-        return parent_id_ != NA_INTEGER;
+        return parent_fun_id_ != NA_INTEGER;
     }
 
     const std::string& get_name() const {
-        return function_name_;
+        return fun_name_;
     }
 
     void set_name(const char* name) {
-        function_name_ = charptr_to_string(name);
+        fun_name_ = charptr_to_string(name);
     }
 
     bool has_name() const {
-        return function_name_ != LAZR_NA_STRING;
+        return fun_name_ != LAZR_NA_STRING;
     }
 
     std::string get_qualified_name() const {
@@ -66,33 +66,33 @@ class Function {
     }
 
     void to_sexp(int index,
-                 SEXP r_function_id,
-                 SEXP r_function_name,
+                 SEXP r_fun_id,
+                 SEXP r_fun_name,
                  SEXP r_qual_name,
-                 SEXP r_parent_id,
-                 SEXP r_environment_id,
+                 SEXP r_parent_fun_id,
+                 SEXP r_fun_env_id,
                  SEXP r_call_count,
-                 SEXP r_hash,
-                 SEXP r_definition) {
-        SET_INTEGER_ELT(r_function_id, index, function_id_);
-        SET_STRING_ELT(r_function_name, index, make_char(function_name_));
+                 SEXP r_fun_hash,
+                 SEXP r_fun_def) {
+        SET_INTEGER_ELT(r_fun_id, index, fun_id_);
+        SET_STRING_ELT(r_fun_name, index, make_char(fun_name_));
         SET_STRING_ELT(r_qual_name, index, make_char(qual_name_));
-        SET_INTEGER_ELT(r_parent_id, index, parent_id_);
-        SET_INTEGER_ELT(r_environment_id, index, environment_id_);
+        SET_INTEGER_ELT(r_parent_fun_id, index, parent_fun_id_);
+        SET_INTEGER_ELT(r_fun_env_id, index, fun_env_id_);
         SET_INTEGER_ELT(r_call_count, index, call_count_);
-        SET_STRING_ELT(r_hash, index, make_char(hash_));
-        SET_STRING_ELT(r_definition, index, make_char(definition_));
+        SET_STRING_ELT(r_fun_hash, index, make_char(fun_hash_));
+        SET_STRING_ELT(r_fun_def, index, make_char(fun_def_));
     }
 
   private:
-    int function_id_;
-    std::string function_name_;
+    int fun_id_;
+    std::string fun_name_;
     std::string qual_name_;
-    int parent_id_;
-    int environment_id_;
+    int parent_fun_id_;
+    int fun_env_id_;
     int call_count_;
-    std::string hash_;
-    std::string definition_;
+    std::string fun_hash_;
+    std::string fun_def_;
 };
 
 #endif /* LAZR_FUNCTION_H */
