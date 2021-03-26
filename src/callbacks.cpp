@@ -442,13 +442,96 @@ void tracing_exit_callback(instrumentr_tracer_t tracer,
     TracingState::finalize(state);
 }
 
+void process_reads(instrumentr_state_t state,
+                   instrumentr_environment_t environment,
+                   const char type,
+                   const std::string& varname,
+                   ArgumentTable& argument_table,
+                   EnvironmentTable& environment_table,
+                   EffectsTable& effects_table) {
+    Environment* env = environment_table.insert(environment);
+
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    bool transitive = false;
+
+    for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (!instrumentr_frame_is_promise(frame)) {
+            continue;
+        }
+
+        instrumentr_promise_t promise = instrumentr_frame_as_promise(frame);
+
+        if (instrumentr_promise_get_type(promise) !=
+            INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+            continue;
+        }
+
+        int t1 = instrumentr_promise_get_birth_time(promise);
+        int t2 = instrumentr_environment_get_last_write_time(environment);
+        int t3 = instrumentr_promise_get_force_entry_time(promise);
+
+        // This means the environment has been modified after the promise is
+        // created but before it is forced and now during forcing the promise is
+        // reading from it. Since this read can potentially be from the modified
+        // location, we should mark it as non local and make the argument lazy.
+        if (t2 > t1 && t2 < t3) {
+            int promise_id = instrumentr_promise_get_id(promise);
+
+            int env_id = instrumentr_environment_get_id(environment);
+
+            effects_table.insert(type, varname, transitive, promise, env);
+
+            const std::vector<Argument*>& args =
+                argument_table.lookup(promise_id);
+
+            for (auto& arg: args) {
+                arg->side_effect(type, transitive);
+            }
+
+            /* TODO: should it be set iff there is a write by the topmost
+             * promise.
+             */
+            transitive = true;
+        }
+    }
+}
+
+void variable_lookup(instrumentr_tracer_t tracer,
+                     instrumentr_callback_t callback,
+                     instrumentr_state_t state,
+                     instrumentr_application_t application,
+                     instrumentr_symbol_t symbol,
+                     instrumentr_value_t value,
+                     instrumentr_environment_t environment) {
+    TracingState& tracing_state = TracingState::lookup(state);
+    ArgumentTable& arg_table = tracing_state.get_argument_table();
+    EffectsTable& effects_table = tracing_state.get_effects_table();
+    EnvironmentTable& env_table = tracing_state.get_environment_table();
+
+    instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
+    std::string varname = instrumentr_char_get_element(charval);
+
+    process_reads(state,
+                  environment,
+                  'L',
+                  varname,
+                  arg_table,
+                  env_table,
+                  effects_table);
+}
+
 void process_writes(instrumentr_state_t state,
                     instrumentr_environment_t environment,
-                    const std::string& type,
+                    const char type,
                     const std::string& varname,
                     ArgumentTable& argument_table,
                     EnvironmentTable& environment_table,
-                    WritesTable& writes_table) {
+                    EffectsTable& effects_table) {
     Environment* env = environment_table.insert(environment);
 
     instrumentr_call_stack_t call_stack =
@@ -481,19 +564,20 @@ void process_writes(instrumentr_state_t state,
 
             int env_id = instrumentr_environment_get_id(environment);
 
-            writes_table.insert(type, varname, transitive, promise, env);
+            effects_table.insert(type, varname, transitive, promise, env);
 
             const std::vector<Argument*>& args =
                 argument_table.lookup(promise_id);
 
             for (auto& arg: args) {
-                arg->side_effect(type);
+                arg->side_effect(type, transitive);
             }
-        }
 
-        /* TODO: should it be set iff there is a write by the topmost promise.
-         */
-        transitive = true;
+            /* TODO: should it be set iff there is a write by the topmost
+             * promise.
+             */
+            transitive = true;
+        }
     }
 }
 
@@ -506,14 +590,19 @@ void variable_assign(instrumentr_tracer_t tracer,
                      instrumentr_environment_t environment) {
     TracingState& tracing_state = TracingState::lookup(state);
     ArgumentTable& arg_table = tracing_state.get_argument_table();
-    WritesTable& writes_table = tracing_state.get_writes_table();
+    EffectsTable& effects_table = tracing_state.get_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_writes(
-        state, environment, "asn", varname, arg_table, env_table, writes_table);
+    process_writes(state,
+                   environment,
+                   'A',
+                   varname,
+                   arg_table,
+                   env_table,
+                   effects_table);
 }
 
 void variable_define(instrumentr_tracer_t tracer,
@@ -525,14 +614,19 @@ void variable_define(instrumentr_tracer_t tracer,
                      instrumentr_environment_t environment) {
     TracingState& tracing_state = TracingState::lookup(state);
     ArgumentTable& arg_table = tracing_state.get_argument_table();
-    WritesTable& writes_table = tracing_state.get_writes_table();
+    EffectsTable& effects_table = tracing_state.get_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_writes(
-        state, environment, "def", varname, arg_table, env_table, writes_table);
+    process_writes(state,
+                   environment,
+                   'D',
+                   varname,
+                   arg_table,
+                   env_table,
+                   effects_table);
 }
 
 void variable_remove(instrumentr_tracer_t tracer,
@@ -543,13 +637,18 @@ void variable_remove(instrumentr_tracer_t tracer,
                      instrumentr_environment_t environment) {
     TracingState& tracing_state = TracingState::lookup(state);
     ArgumentTable& arg_table = tracing_state.get_argument_table();
-    WritesTable& writes_table = tracing_state.get_writes_table();
+    EffectsTable& effects_table = tracing_state.get_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
     std::string varname = LAZR_NA_STRING;
 
-    process_writes(
-        state, environment, "rem", varname, arg_table, env_table, writes_table);
+    process_writes(state,
+                   environment,
+                   'R',
+                   varname,
+                   arg_table,
+                   env_table,
+                   effects_table);
 }
 
 void value_finalize(instrumentr_tracer_t tracer,

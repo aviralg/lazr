@@ -6,7 +6,7 @@
 #include "EnvironmentTable.h"
 #include "ArgumentTable.h"
 #include "FunctionTable.h"
-#include "WritesTable.h"
+#include "EffectsTable.h"
 #include "ReflectionTable.h"
 #include <instrumentr/instrumentr.h>
 
@@ -47,12 +47,12 @@ class TracingState {
         return function_table_;
     }
 
-    WritesTable& get_writes_table() {
-        return writes_table_;
+    EffectsTable& get_effects_table() {
+        return effects_table_;
     }
 
-    const WritesTable& get_writes_table() const {
-        return writes_table_;
+    const EffectsTable& get_effects_table() const {
+        return effects_table_;
     }
 
     ReflectionTable& get_reflection_table() {
@@ -74,7 +74,7 @@ class TracingState {
     EnvironmentTable environment_table_;
     ArgumentTable argument_table_;
     FunctionTable function_table_;
-    WritesTable writes_table_;
+    EffectsTable effects_table_;
     ReflectionTable reflection_table_;
 };
 

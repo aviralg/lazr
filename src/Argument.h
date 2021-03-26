@@ -43,6 +43,7 @@ class Argument {
         , force_depth_(NA_INTEGER)
         , comp_pos_(NA_INTEGER)
         , event_seq_("")
+        , self_effect_seq_("")
         , effect_seq_("")
         , ref_seq_({}) {
         cap_force_ = preforced;
@@ -113,22 +114,8 @@ class Argument {
         add_event_('E');
     }
 
-    void side_effect(const std::string& type) {
-        if (type == "asn") {
-            effect_seq_.push_back('A');
-        }
-
-        else if (type == "rem") {
-            effect_seq_.push_back('R');
-        }
-
-        else if (type == "def") {
-            effect_seq_.push_back('D');
-        }
-
-        else {
-            Rf_error("unexpected side effect type '%s'", type.c_str());
-        }
+    void side_effect(const char type, bool transitive) {
+        update_effect_seq_(type, transitive);
     }
 
     void reflection(const std::string& name) {
@@ -171,6 +158,7 @@ class Argument {
                  SEXP r_force_depth,
                  SEXP r_comp_pos,
                  SEXP r_event_seq,
+                 SEXP r_self_effect_seq,
                  SEXP r_effect_seq,
                  SEXP r_ref_seq) {
         SET_INTEGER_ELT(r_arg_id, index, arg_id_);
@@ -198,6 +186,7 @@ class Argument {
         SET_INTEGER_ELT(r_force_depth, index, force_depth_);
         SET_INTEGER_ELT(r_comp_pos, index, comp_pos_);
         SET_STRING_ELT(r_event_seq, index, make_char(event_seq_));
+        SET_STRING_ELT(r_self_effect_seq, index, make_char(self_effect_seq_));
         SET_STRING_ELT(r_effect_seq, index, make_char(effect_seq_));
         SET_STRING_ELT(r_ref_seq, index, make_char(to_string(ref_seq_)));
     }
@@ -228,11 +217,19 @@ class Argument {
     int force_depth_;
     int comp_pos_;
     std::string event_seq_;
+    std::string self_effect_seq_;
     std::string effect_seq_;
     std::vector<std::pair<std::string, int>> ref_seq_;
 
     void add_event_(char event) {
         event_seq_.push_back(event);
+    }
+
+    void update_effect_seq_(const char type, bool transitive) {
+        effect_seq_.push_back(type);
+        if (!transitive) {
+            self_effect_seq_.push_back(type);
+        }
     }
 };
 

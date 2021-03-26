@@ -1,26 +1,26 @@
-#ifndef LAZR_WRITES_TABLE_H
-#define LAZR_WRITES_TABLE_H
+#ifndef LAZR_EFFECTS_TABLE_H
+#define LAZR_EFFECTS_TABLE_H
 
 #include <vector>
 #include <string>
 #include <instrumentr/instrumentr.h>
 
-class WritesTable {
+class EffectsTable {
   public:
-    WritesTable() {
+    EffectsTable() {
     }
 
-    ~WritesTable() {
+    ~EffectsTable() {
     }
 
-    void insert(const std::string& type,
+    void insert(const char type,
                 const std::string& var_name,
                 bool transitive,
                 instrumentr_promise_t promise,
                 Environment* environment) {
         int arg_id = instrumentr_promise_get_id(promise);
 
-        type_.push_back(type);
+        type_.push_back(std::string(1, type));
         var_name_.push_back(var_name);
         transitive_.push_back(transitive);
         arg_id_.push_back(arg_id);
@@ -66,4 +66,4 @@ class WritesTable {
     std::vector<int> env_id_;
 };
 
-#endif /* LAZR_WRITES_TABLE_H */
+#endif /* LAZR_EFFECTS_TABLE_H */
