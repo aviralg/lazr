@@ -1,16 +1,16 @@
-#ifndef LAZR_SIDE_EFFECTS_TABLE_H
-#define LAZR_SIDE_EFFECTS_TABLE_H
+#ifndef LAZR_WRITES_TABLE_H
+#define LAZR_WRITES_TABLE_H
 
 #include <vector>
 #include <string>
 #include <instrumentr/instrumentr.h>
 
-class SideEffectsTable {
+class WritesTable {
   public:
-    SideEffectsTable() {
+    WritesTable() {
     }
 
-    ~SideEffectsTable() {
+    ~WritesTable() {
     }
 
     void insert(const std::string& type,
@@ -66,4 +66,4 @@ class SideEffectsTable {
     std::vector<int> env_id_;
 };
 
-#endif /* LAZR_SIDE_EFFECTS_TABLE_H */
+#endif /* LAZR_WRITES_TABLE_H */

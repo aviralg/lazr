@@ -433,7 +433,6 @@ void tracing_entry_callback(instrumentr_tracer_t tracer,
 void tracing_exit_callback(instrumentr_tracer_t tracer,
                            instrumentr_callback_t callback,
                            instrumentr_state_t state) {
-
     TracingState& tracing_state = TracingState::lookup(state);
     EnvironmentTable& env_table = tracing_state.get_environment_table();
     FunctionTable& fun_table = tracing_state.get_function_table();
@@ -443,13 +442,13 @@ void tracing_exit_callback(instrumentr_tracer_t tracer,
     TracingState::finalize(state);
 }
 
-void process_side_effects(instrumentr_state_t state,
-                          instrumentr_environment_t environment,
-                          const std::string& type,
-                          const std::string& varname,
-                          ArgumentTable& argument_table,
-                          EnvironmentTable& environment_table,
-                          SideEffectsTable& se_table) {
+void process_writes(instrumentr_state_t state,
+                    instrumentr_environment_t environment,
+                    const std::string& type,
+                    const std::string& varname,
+                    ArgumentTable& argument_table,
+                    EnvironmentTable& environment_table,
+                    WritesTable& writes_table) {
     Environment* env = environment_table.insert(environment);
 
     instrumentr_call_stack_t call_stack =
@@ -482,7 +481,7 @@ void process_side_effects(instrumentr_state_t state,
 
             int env_id = instrumentr_environment_get_id(environment);
 
-            se_table.insert(type, varname, transitive, promise, env);
+            writes_table.insert(type, varname, transitive, promise, env);
 
             const std::vector<Argument*>& args =
                 argument_table.lookup(promise_id);
@@ -507,14 +506,14 @@ void variable_assign(instrumentr_tracer_t tracer,
                      instrumentr_environment_t environment) {
     TracingState& tracing_state = TracingState::lookup(state);
     ArgumentTable& arg_table = tracing_state.get_argument_table();
-    SideEffectsTable& se_table = tracing_state.get_side_effects_table();
+    WritesTable& writes_table = tracing_state.get_writes_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_side_effects(
-        state, environment, "asn", varname, arg_table, env_table, se_table);
+    process_writes(
+        state, environment, "asn", varname, arg_table, env_table, writes_table);
 }
 
 void variable_define(instrumentr_tracer_t tracer,
@@ -526,14 +525,14 @@ void variable_define(instrumentr_tracer_t tracer,
                      instrumentr_environment_t environment) {
     TracingState& tracing_state = TracingState::lookup(state);
     ArgumentTable& arg_table = tracing_state.get_argument_table();
-    SideEffectsTable& se_table = tracing_state.get_side_effects_table();
+    WritesTable& writes_table = tracing_state.get_writes_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_side_effects(
-        state, environment, "def", varname, arg_table, env_table, se_table);
+    process_writes(
+        state, environment, "def", varname, arg_table, env_table, writes_table);
 }
 
 void variable_remove(instrumentr_tracer_t tracer,
@@ -544,13 +543,13 @@ void variable_remove(instrumentr_tracer_t tracer,
                      instrumentr_environment_t environment) {
     TracingState& tracing_state = TracingState::lookup(state);
     ArgumentTable& arg_table = tracing_state.get_argument_table();
-    SideEffectsTable& se_table = tracing_state.get_side_effects_table();
+    WritesTable& writes_table = tracing_state.get_writes_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
 
     std::string varname = LAZR_NA_STRING;
 
-    process_side_effects(
-        state, environment, "rem", varname, arg_table, env_table, se_table);
+    process_writes(
+        state, environment, "rem", varname, arg_table, env_table, writes_table);
 }
 
 void value_finalize(instrumentr_tracer_t tracer,

@@ -28,7 +28,7 @@ void TracingState::finalize(instrumentr_state_t state) {
     SEXP r_functions = PROTECT(tracing_state.get_function_table().to_sexp());
     SEXP r_environments =
         PROTECT(tracing_state.get_environment_table().to_sexp());
-    SEXP r_se = PROTECT(tracing_state.get_side_effects_table().to_sexp());
+    SEXP r_writes = PROTECT(tracing_state.get_writes_table().to_sexp());
     SEXP r_reflection = PROTECT(tracing_state.get_reflection_table().to_sexp());
 
     instrumentr_state_erase(state, "tracing_state", true);
@@ -36,7 +36,7 @@ void TracingState::finalize(instrumentr_state_t state) {
     instrumentr_state_insert(state, "arguments", r_arguments, true);
     instrumentr_state_insert(state, "functions", r_functions, true);
     instrumentr_state_insert(state, "environments", r_environments, true);
-    instrumentr_state_insert(state, "side_effects", r_se, true);
+    instrumentr_state_insert(state, "writes", r_writes, true);
     instrumentr_state_insert(state, "reflection", r_reflection, true);
 
     UNPROTECT(6);
