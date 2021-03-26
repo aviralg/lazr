@@ -137,6 +137,7 @@ class ArgumentTable {
         SEXP r_event_seq = PROTECT(allocVector(STRSXP, size_));
         SEXP r_self_effect_seq = PROTECT(allocVector(STRSXP, size_));
         SEXP r_effect_seq = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_self_ref_seq = PROTECT(allocVector(STRSXP, size_));
         SEXP r_ref_seq = PROTECT(allocVector(STRSXP, size_));
 
         int index = 0;
@@ -173,6 +174,7 @@ class ArgumentTable {
                                   r_event_seq,
                                   r_self_effect_seq,
                                   r_effect_seq,
+                                  r_self_ref_seq,
                                   r_ref_seq);
                 ++index;
             }
@@ -185,7 +187,8 @@ class ArgumentTable {
              r_expr_type,  r_val_type,        r_preforced,   r_cap_force,
              r_cap_meta,   r_cap_lookup,      r_escaped,     r_esc_force,
              r_esc_meta,   r_esc_lookup,      r_force_depth, r_comp_pos,
-             r_event_seq,  r_self_effect_seq, r_effect_seq,  r_ref_seq});
+             r_event_seq,  r_self_effect_seq, r_effect_seq,  r_self_ref_seq,
+             r_ref_seq});
 
         std::vector<std::string> names(
             {"arg_id",     "call_id",         "fun_id",      "call_env_id",
@@ -194,11 +197,12 @@ class ArgumentTable {
              "expr_type",  "val_type",        "preforced",   "cap_force",
              "cap_meta",   "cap_lookup",      "escaped",     "esc_force",
              "esc_meta",   "esc_lookup",      "force_depth", "comp_pos",
-             "event_seq",  "self_effect_seq", "effect_seq",  "ref_seq"});
+             "event_seq",  "self_effect_seq", "effect_seq",  "self_ref_seq",
+             "ref_seq"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(28);
+        UNPROTECT(29);
 
         return df;
     }

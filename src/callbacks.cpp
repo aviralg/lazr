@@ -61,7 +61,7 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
         const std::vector<Argument*>& args = arg_table.lookup(promise_id);
 
         for (auto& arg: args) {
-            arg->reflection(name);
+            arg->reflection(name, transitive);
         }
 
         ref_table.insert(name, transitive, promise);
@@ -516,13 +516,8 @@ void variable_lookup(instrumentr_tracer_t tracer,
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_reads(state,
-                  environment,
-                  'L',
-                  varname,
-                  arg_table,
-                  env_table,
-                  effects_table);
+    process_reads(
+        state, environment, 'L', varname, arg_table, env_table, effects_table);
 }
 
 void process_writes(instrumentr_state_t state,
@@ -596,13 +591,8 @@ void variable_assign(instrumentr_tracer_t tracer,
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_writes(state,
-                   environment,
-                   'A',
-                   varname,
-                   arg_table,
-                   env_table,
-                   effects_table);
+    process_writes(
+        state, environment, 'A', varname, arg_table, env_table, effects_table);
 }
 
 void variable_define(instrumentr_tracer_t tracer,
@@ -620,13 +610,8 @@ void variable_define(instrumentr_tracer_t tracer,
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_writes(state,
-                   environment,
-                   'D',
-                   varname,
-                   arg_table,
-                   env_table,
-                   effects_table);
+    process_writes(
+        state, environment, 'D', varname, arg_table, env_table, effects_table);
 }
 
 void variable_remove(instrumentr_tracer_t tracer,
@@ -642,13 +627,8 @@ void variable_remove(instrumentr_tracer_t tracer,
 
     std::string varname = LAZR_NA_STRING;
 
-    process_writes(state,
-                   environment,
-                   'R',
-                   varname,
-                   arg_table,
-                   env_table,
-                   effects_table);
+    process_writes(
+        state, environment, 'R', varname, arg_table, env_table, effects_table);
 }
 
 void value_finalize(instrumentr_tracer_t tracer,

@@ -45,6 +45,7 @@ class Argument {
         , event_seq_("")
         , self_effect_seq_("")
         , effect_seq_("")
+        , self_ref_seq_({})
         , ref_seq_({}) {
         cap_force_ = preforced;
     }
@@ -115,20 +116,16 @@ class Argument {
     }
 
     void side_effect(const char type, bool transitive) {
-        update_effect_seq_(type, transitive);
+        add_effect_(effect_seq_, type);
+        if (!transitive) {
+            add_effect_(self_effect_seq_, type);
+        }
     }
 
-    void reflection(const std::string& name) {
-        if (ref_seq_.empty()) {
-            ref_seq_.push_back({name, 1});
-        }
-
-        else if (ref_seq_.back().first == name) {
-            ++ref_seq_.back().second;
-        }
-
-        else {
-            ref_seq_.push_back({name, 1});
+    void reflection(const std::string& name, bool transitive) {
+        add_ref_(ref_seq_, name);
+        if (!transitive) {
+            add_ref_(self_ref_seq_, name);
         }
     }
 
@@ -160,6 +157,7 @@ class Argument {
                  SEXP r_event_seq,
                  SEXP r_self_effect_seq,
                  SEXP r_effect_seq,
+                 SEXP r_self_ref_seq,
                  SEXP r_ref_seq) {
         SET_INTEGER_ELT(r_arg_id, index, arg_id_);
         SET_INTEGER_ELT(r_call_id, index, call_id_);
@@ -188,6 +186,8 @@ class Argument {
         SET_STRING_ELT(r_event_seq, index, make_char(event_seq_));
         SET_STRING_ELT(r_self_effect_seq, index, make_char(self_effect_seq_));
         SET_STRING_ELT(r_effect_seq, index, make_char(effect_seq_));
+        SET_STRING_ELT(
+            r_self_ref_seq, index, make_char(to_string(self_ref_seq_)));
         SET_STRING_ELT(r_ref_seq, index, make_char(to_string(ref_seq_)));
     }
 
@@ -219,16 +219,29 @@ class Argument {
     std::string event_seq_;
     std::string self_effect_seq_;
     std::string effect_seq_;
+    std::vector<std::pair<std::string, int>> self_ref_seq_;
     std::vector<std::pair<std::string, int>> ref_seq_;
 
     void add_event_(char event) {
         event_seq_.push_back(event);
     }
 
-    void update_effect_seq_(const char type, bool transitive) {
-        effect_seq_.push_back(type);
-        if (!transitive) {
-            self_effect_seq_.push_back(type);
+    void add_effect_(std::string& effect_seq, const char type) {
+        effect_seq.push_back(type);
+    }
+
+    void add_ref_(std::vector<std::pair<std::string, int>>& ref_seq,
+                  const std::string& name) {
+        if (ref_seq.empty()) {
+            ref_seq.push_back({name, 1});
+        }
+
+        else if (ref_seq.back().first == name) {
+            ++ref_seq.back().second;
+        }
+
+        else {
+            ref_seq.push_back({name, 1});
         }
     }
 };
