@@ -169,7 +169,7 @@ void closure_call_entry_callback(instrumentr_tracer_t tracer,
     ArgumentTable& argument_table = tracing_state.get_argument_table();
 
     process_arguments(
-        argument_table, call, closure, call_data, function_data, fun_env_data);
+        argument_table, call, closure, call_data, function_data, call_env_data);
 
     process_actuals(argument_table, call);
 }

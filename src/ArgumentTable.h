@@ -24,17 +24,17 @@ class ArgumentTable {
         }
         table_.clear();
     }
-
+    /* TODO: make this call_env */
     void insert(instrumentr_value_t argument,
-                int argument_position,
-                const std::string& argument_name,
+                int formal_pos,
+                const std::string& arg_name,
                 Call* call_data,
                 Function* function_data,
                 Environment* environment_data) {
         if (instrumentr_value_is_dot(argument)) {
             insert_dot_(instrumentr_value_as_dot(argument),
-                        argument_position,
-                        argument_name,
+                        formal_pos,
+                        arg_name,
                         call_data,
                         function_data,
                         environment_data);
@@ -42,8 +42,8 @@ class ArgumentTable {
 
         else if (instrumentr_value_is_missing(argument)) {
             insert_missing_(instrumentr_value_as_missing(argument),
-                            argument_position,
-                            argument_name,
+                            formal_pos,
+                            arg_name,
                             call_data,
                             function_data,
                             environment_data);
@@ -51,8 +51,8 @@ class ArgumentTable {
 
         else if (instrumentr_value_is_promise(argument)) {
             insert_promise_(instrumentr_value_as_promise(argument),
-                            argument_position,
-                            argument_name,
+                            formal_pos,
+                            arg_name,
                             call_data,
                             function_data,
                             environment_data);
@@ -60,25 +60,25 @@ class ArgumentTable {
 
         else {
             insert_value_(argument,
-                          argument_position,
-                          argument_name,
+                          formal_pos,
+                          arg_name,
                           call_data,
                           function_data,
                           environment_data);
         }
     }
 
-    const std::vector<Argument*>& lookup(int argument_id) {
-        auto result = table_.find(argument_id);
+    const std::vector<Argument*>& lookup(int arg_id) {
+        auto result = table_.find(arg_id);
 
         if (result == table_.end()) {
-            Rf_error("cannot find argument with id %d", argument_id);
+            Rf_error("cannot find argument with id %d", arg_id);
         }
         return result->second;
     }
 
-    Argument* lookup(int argument_id, int call_id) {
-        const std::vector<Argument*>& arguments = lookup(argument_id);
+    Argument* lookup(int arg_id, int call_id) {
+        const std::vector<Argument*>& arguments = lookup(arg_id);
 
         for (auto argument: arguments) {
             if (argument->get_call_id() == call_id) {
@@ -86,15 +86,14 @@ class ArgumentTable {
             }
         }
 
-        Rf_error("cannot find argument with id %d and call id %d",
-                 argument_id,
-                 call_id);
+        Rf_error(
+            "cannot find argument with id %d and call id %d", arg_id, call_id);
 
         return NULL;
     }
 
-    Argument* lookup_permissive(int argument_id, int call_id) {
-        auto result = table_.find(argument_id);
+    Argument* lookup_permissive(int arg_id, int call_id) {
+        auto result = table_.find(arg_id);
 
         if (result == table_.end()) {
             return NULL;
@@ -111,23 +110,20 @@ class ArgumentTable {
     }
 
     SEXP to_sexp() {
-        SEXP r_argument_id = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_arg_id = PROTECT(allocVector(INTSXP, size_));
         SEXP r_call_id = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_function_id = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_function_name = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_environment_id = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_environment_name = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_argument_position = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_force_position = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_actual_position = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_argument_name = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_argument_count = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_fun_id = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_call_env_id = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_arg_name = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_formal_pos = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_force_pos = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_actual_pos = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_arg_count = PROTECT(allocVector(INTSXP, size_));
         SEXP r_vararg = PROTECT(allocVector(LGLSXP, size_));
         SEXP r_missing = PROTECT(allocVector(LGLSXP, size_));
-        SEXP r_argument_type = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_expression_type = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_transitive_type = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_value_type = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_arg_type = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_expr_type = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_val_type = PROTECT(allocVector(STRSXP, size_));
         SEXP r_preforced = PROTECT(allocVector(INTSXP, size_));
         SEXP r_cap_force = PROTECT(allocVector(INTSXP, size_));
         SEXP r_cap_meta = PROTECT(allocVector(INTSXP, size_));
@@ -137,11 +133,10 @@ class ArgumentTable {
         SEXP r_esc_meta = PROTECT(allocVector(INTSXP, size_));
         SEXP r_esc_lookup = PROTECT(allocVector(INTSXP, size_));
         SEXP r_force_depth = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_force_source = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_companion_position = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_event_sequence = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_effect_sequence = PROTECT(allocVector(STRSXP, size_));
-        SEXP r_reflection_sequence = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_comp_pos = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_event_seq = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_effect_seq = PROTECT(allocVector(STRSXP, size_));
+        SEXP r_ref_seq = PROTECT(allocVector(STRSXP, size_));
 
         int index = 0;
 
@@ -150,23 +145,20 @@ class ArgumentTable {
 
             for (Argument* argument: arguments) {
                 argument->to_sexp(index,
-                                  r_argument_id,
+                                  r_arg_id,
                                   r_call_id,
-                                  r_function_id,
-                                  r_function_name,
-                                  r_environment_id,
-                                  r_environment_name,
-                                  r_argument_position,
-                                  r_force_position,
-                                  r_actual_position,
-                                  r_argument_name,
-                                  r_argument_count,
+                                  r_fun_id,
+                                  r_call_env_id,
+                                  r_arg_name,
+                                  r_formal_pos,
+                                  r_force_pos,
+                                  r_actual_pos,
+                                  r_arg_count,
                                   r_vararg,
                                   r_missing,
-                                  r_argument_type,
-                                  r_expression_type,
-                                  r_transitive_type,
-                                  r_value_type,
+                                  r_arg_type,
+                                  r_expr_type,
+                                  r_val_type,
                                   r_preforced,
                                   r_cap_force,
                                   r_cap_meta,
@@ -176,82 +168,35 @@ class ArgumentTable {
                                   r_esc_meta,
                                   r_esc_lookup,
                                   r_force_depth,
-                                  r_force_source,
-                                  r_companion_position,
-                                  r_event_sequence,
-                                  r_effect_sequence,
-                                  r_reflection_sequence);
+                                  r_comp_pos,
+                                  r_event_seq,
+                                  r_effect_seq,
+                                  r_ref_seq);
                 ++index;
             }
         }
 
-        std::vector<SEXP> columns({r_argument_id,
-                                   r_call_id,
-                                   r_function_id,
-                                   r_function_name,
-                                   r_environment_id,
-                                   r_environment_name,
-                                   r_argument_position,
-                                   r_force_position,
-                                   r_actual_position,
-                                   r_argument_name,
-                                   r_argument_count,
-                                   r_vararg,
-                                   r_missing,
-                                   r_argument_type,
-                                   r_expression_type,
-                                   r_transitive_type,
-                                   r_value_type,
-                                   r_preforced,
-                                   r_cap_force,
-                                   r_cap_meta,
-                                   r_cap_lookup,
-                                   r_escaped,
-                                   r_esc_force,
-                                   r_esc_meta,
-                                   r_esc_lookup,
-                                   r_force_depth,
-                                   r_force_source,
-                                   r_companion_position,
-                                   r_event_sequence,
-                                   r_effect_sequence,
-                                   r_reflection_sequence});
+        std::vector<SEXP> columns(
+            {r_arg_id,     r_call_id,    r_fun_id,      r_call_env_id,
+             r_formal_pos, r_force_pos,  r_actual_pos,  r_arg_name,
+             r_arg_count,  r_vararg,     r_missing,     r_arg_type,
+             r_expr_type,  r_val_type,   r_preforced,   r_cap_force,
+             r_cap_meta,   r_cap_lookup, r_escaped,     r_esc_force,
+             r_esc_meta,   r_esc_lookup, r_force_depth, r_comp_pos,
+             r_event_seq,  r_effect_seq, r_ref_seq});
 
-        std::vector<std::string> names({"argument_id",
-                                        "call_id",
-                                        "function_id",
-                                        "function_name",
-                                        "environment_id",
-                                        "environment_name",
-                                        "argument_position",
-                                        "force_position",
-                                        "actual_position",
-                                        "argument_name",
-                                        "argument_count",
-                                        "vararg",
-                                        "missing",
-                                        "argument_type",
-                                        "expression_type",
-                                        "transitive_type",
-                                        "value_type",
-                                        "preforced",
-                                        "cap_force",
-                                        "cap_meta",
-                                        "cap_lookup",
-                                        "escaped",
-                                        "esc_force",
-                                        "esc_meta",
-                                        "esc_lookup",
-                                        "force_depth",
-                                        "force_source",
-                                        "companion_position",
-                                        "event_sequence",
-                                        "effect_sequence",
-                                        "reflection_sequence"});
+        std::vector<std::string> names(
+            {"arg_id",     "call_id",    "fun_id",      "call_env_id",
+             "formal_pos", "force_pos",  "actual_pos",  "arg_name",
+             "arg_count",  "vararg",     "missing",     "arg_type",
+             "expr_type",  "val_type",   "preforced",   "cap_force",
+             "cap_meta",   "cap_lookup", "escaped",     "esc_force",
+             "esc_meta",   "esc_lookup", "force_depth", "comp_pos",
+             "event_seq",  "effect_seq", "ref_seq"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(31);
+        UNPROTECT(27);
 
         return df;
     }
@@ -261,15 +206,15 @@ class ArgumentTable {
     int size_;
 
     void insert_dot_(instrumentr_dot_t dot,
-                     int argument_position,
-                     const std::string& argument_name,
+                     int formal_pos,
+                     const std::string& arg_name,
                      Call* call_data,
                      Function* function_data,
                      Environment* environment_data) {
         instrumentr_value_t ptr = instrumentr_dot_as_value(dot);
 
         int preforced = 0;
-        int argument_count = 0;
+        int arg_count = 0;
 
         while (1) {
             if (instrumentr_value_is_null(ptr)) {
@@ -283,7 +228,7 @@ class ArgumentTable {
 
                 ptr = instrumentr_dot_get_cdr(dot_ptr);
 
-                ++argument_count;
+                ++arg_count;
 
                 if (instrumentr_value_is_promise(value)) {
                     preforced += instrumentr_promise_is_forced(
@@ -304,7 +249,7 @@ class ArgumentTable {
 
                 ptr = instrumentr_pairlist_get_cdr(pairlist_ptr);
 
-                ++argument_count;
+                ++arg_count;
 
                 if (instrumentr_value_is_promise(value)) {
                     preforced += instrumentr_promise_is_forced(
@@ -317,83 +262,71 @@ class ArgumentTable {
             }
         }
 
-        int argument_id = instrumentr_dot_get_id(dot);
+        int arg_id = instrumentr_dot_get_id(dot);
         int call_id = call_data->get_id();
-        int function_id = function_data->get_id();
-        std::string function_name = function_data->get_name();
-        int environment_id = environment_data->get_id();
-        std::string environment_name = environment_data->get_name();
+        int fun_id = function_data->get_id();
+        int call_env_id = environment_data->get_id();
         int vararg = 1;
         int missing = 0;
-        std::string argument_type = "dot";
-        std::string expression_type = LAZR_NA_STRING;
-        std::string transitive_type = LAZR_NA_STRING;
-        std::string value_type = LAZR_NA_STRING;
+        std::string arg_type = "dot";
+        std::string expr_type = LAZR_NA_STRING;
+        std::string val_type = LAZR_NA_STRING;
 
-        Argument* argument_data = new Argument(argument_id,
+        Argument* argument_data = new Argument(arg_id,
                                                call_id,
-                                               function_id,
-                                               function_name,
-                                               environment_id,
-                                               environment_name,
-                                               argument_position,
-                                               argument_name,
-                                               argument_count,
+                                               fun_id,
+                                               call_env_id,
+                                               arg_name,
+                                               formal_pos,
+                                               arg_count,
                                                vararg,
                                                missing,
-                                               argument_type,
-                                               expression_type,
-                                               transitive_type,
-                                               value_type,
+                                               arg_type,
+                                               expr_type,
+                                               val_type,
                                                preforced);
 
         insert_(argument_data);
     }
 
     void insert_missing_(instrumentr_missing_t missing_val,
-                         int argument_position,
-                         const std::string& argument_name,
+                         int formal_pos,
+                         const std::string& arg_name,
                          Call* call_data,
                          Function* function_data,
                          Environment* environment_data) {
-        int argument_id = instrumentr_missing_get_id(missing_val);
+        int arg_id = instrumentr_missing_get_id(missing_val);
         int call_id = call_data->get_id();
-        int function_id = function_data->get_id();
-        std::string function_name = function_data->get_name();
-        int environment_id = environment_data->get_id();
-        std::string environment_name = environment_data->get_name();
-        int argument_count = 0;
+        int fun_id = function_data->get_id();
+        int call_env_id = environment_data->get_id();
+        int arg_count = 0;
         int vararg = 0;
         int missing = 1;
-        std::string argument_type = "missing";
-        std::string expression_type = LAZR_NA_STRING;
-        std::string transitive_type = LAZR_NA_STRING;
-        std::string value_type = LAZR_NA_STRING;
+        std::string arg_type = "missing";
+        std::string expr_type = LAZR_NA_STRING;
+        std::string val_type = LAZR_NA_STRING;
         int preforced = NA_INTEGER;
 
-        Argument* argument_data = new Argument(argument_id,
+        Argument* argument_data = new Argument(arg_id,
                                                call_id,
-                                               function_id,
-                                               function_name,
-                                               environment_id,
-                                               environment_name,
-                                               argument_position,
-                                               argument_name,
-                                               argument_count,
+                                               fun_id,
+                                               call_env_id,
+                                               arg_name,
+                                               formal_pos,
+                                               arg_count,
                                                vararg,
                                                missing,
-                                               argument_type,
-                                               expression_type,
-                                               transitive_type,
-                                               value_type,
+                                               arg_type,
+                                               expr_type,
+                                               val_type,
                                                preforced);
 
         insert_(argument_data);
     }
 
     void insert_promise_(instrumentr_promise_t promise,
-                         int argument_position,
-                         const std::string& argument_name,
+                         int formal_pos,
+                         const std::string& arg_name,
                          Call* call_data,
                          Function* function_data,
                          Environment* environment_data) {
@@ -403,80 +336,66 @@ class ArgumentTable {
         instrumentr_value_type_t prom_val_type =
             instrumentr_value_get_type(instrumentr_promise_get_value(promise));
 
-        int argument_id = instrumentr_promise_get_id(promise);
+        int arg_id = instrumentr_promise_get_id(promise);
         int call_id = call_data->get_id();
-        int function_id = function_data->get_id();
-        std::string function_name = function_data->get_name();
-        int environment_id = environment_data->get_id();
-        std::string environment_name = environment_data->get_name();
-        int argument_count = 1;
+        int fun_id = function_data->get_id();
+        int call_env_id = environment_data->get_id();
+        int arg_count = 1;
         int vararg = 0;
         int missing = 0;
-        std::string argument_type = "promise";
-        std::string expression_type =
-            instrumentr_value_type_get_name(prom_expr_type);
-        std::string transitive_type = LAZR_NA_STRING;
-        std::string value_type = instrumentr_value_type_get_name(prom_val_type);
+        std::string arg_type = "promise";
+        std::string expr_type = instrumentr_value_type_get_name(prom_expr_type);
+        std::string val_type = instrumentr_value_type_get_name(prom_val_type);
         int preforced = instrumentr_promise_is_forced(promise);
 
-        Argument* argument_data = new Argument(argument_id,
+        Argument* argument_data = new Argument(arg_id,
                                                call_id,
-                                               function_id,
-                                               function_name,
-                                               environment_id,
-                                               environment_name,
-                                               argument_position,
-                                               argument_name,
-                                               argument_count,
+                                               fun_id,
+                                               call_env_id,
+                                               arg_name,
+                                               formal_pos,
+                                               arg_count,
                                                vararg,
                                                missing,
-                                               argument_type,
-                                               expression_type,
-                                               transitive_type,
-                                               value_type,
+                                               arg_type,
+                                               expr_type,
+                                               val_type,
                                                preforced);
 
         insert_(argument_data);
     }
 
     void insert_value_(instrumentr_value_t value,
-                       int argument_position,
-                       const std::string& argument_name,
+                       int formal_pos,
+                       const std::string& arg_name,
                        Call* call_data,
                        Function* function_data,
                        Environment* environment_data) {
-        instrumentr_value_type_t val_type = instrumentr_value_get_type(value);
-
-        int argument_id = instrumentr_value_get_id(value);
+        int arg_id = instrumentr_value_get_id(value);
         int call_id = call_data->get_id();
-        int function_id = function_data->get_id();
-        std::string function_name = function_data->get_name();
-        int environment_id = environment_data->get_id();
-        std::string environment_name = environment_data->get_name();
-        int argument_count = 1;
+        int fun_id = function_data->get_id();
+        int call_env_id = environment_data->get_id();
+        int arg_count = 1;
         int vararg = 0;
         int missing = 0;
-        std::string argument_type = instrumentr_value_type_get_name(val_type);
-        std::string expression_type = LAZR_NA_STRING;
-        std::string transitive_type = LAZR_NA_STRING;
-        std::string value_type = LAZR_NA_STRING;
+        std::string arg_type =
+            instrumentr_value_type_get_name(instrumentr_value_get_type(value));
+        std::string expr_type = LAZR_NA_STRING;
+        std::string val_type = LAZR_NA_STRING;
         int preforced = NA_INTEGER;
 
-        Argument* argument_data = new Argument(argument_id,
+        Argument* argument_data = new Argument(arg_id,
                                                call_id,
-                                               function_id,
-                                               function_name,
-                                               environment_id,
-                                               environment_name,
-                                               argument_position,
-                                               argument_name,
-                                               argument_count,
+                                               fun_id,
+                                               call_env_id,
+                                               arg_name,
+                                               formal_pos,
+                                               arg_count,
                                                vararg,
                                                missing,
-                                               argument_type,
-                                               expression_type,
-                                               transitive_type,
-                                               value_type,
+                                               arg_type,
+                                               expr_type,
+                                               val_type,
                                                preforced);
 
         insert_(argument_data);
@@ -484,9 +403,9 @@ class ArgumentTable {
 
     void insert_(Argument* argument) {
         ++size_;
-        int argument_id = argument->get_id();
+        int arg_id = argument->get_id();
 
-        auto result = table_.insert({argument_id, {argument}});
+        auto result = table_.insert({arg_id, {argument}});
         if (!result.second) {
             result.first->second.push_back(argument);
         }

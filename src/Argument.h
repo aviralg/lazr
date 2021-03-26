@@ -5,39 +5,33 @@
 
 class Argument {
   public:
-    Argument(int argument_id,
+    Argument(int arg_id,
              int call_id,
-             int function_id,
-             const std::string& function_name,
-             int environment_id,
-             const std::string& environment_name,
-             int argument_position,
-             const std::string& argument_name,
-             int argument_count,
+             int fun_id,
+             int call_env_id,
+             const std::string& arg_name,
+             int formal_pos,
+             int arg_count,
              int vararg,
              int missing,
-             const std::string& argument_type,
-             const std::string& expression_type,
-             const std::string& transitive_type = LAZR_NA_STRING,
-             const std::string& value_type = LAZR_NA_STRING,
-             int preforced = 0)
-        : argument_id_(argument_id)
+             const std::string& arg_type,
+             const std::string& expr_type,
+             const std::string& val_type,
+             int preforced)
+        : arg_id_(arg_id)
         , call_id_(call_id)
-        , function_id_(function_id)
-        , function_name_(function_name)
-        , environment_id_(environment_id)
-        , environment_name_(environment_name)
-        , argument_position_(argument_position)
-        , force_position_(NA_INTEGER)
-        , actual_position_(NA_INTEGER)
-        , argument_name_(argument_name)
-        , argument_count_(argument_count)
+        , fun_id_(fun_id)
+        , call_env_id_(call_env_id)
+        , arg_name_(arg_name)
+        , formal_pos_(formal_pos)
+        , actual_pos_(NA_INTEGER)
+        , force_pos_(NA_INTEGER)
+        , arg_count_(arg_count)
         , vararg_(vararg)
         , missing_(missing)
-        , argument_type_(argument_type)
-        , expression_type_(expression_type)
-        , transitive_type_(transitive_type)
-        , value_type_(value_type)
+        , arg_type_(arg_type)
+        , expr_type_(expr_type)
+        , val_type_(val_type)
         , preforced_(preforced)
         , cap_force_(0)
         , cap_meta_(0)
@@ -47,16 +41,15 @@ class Argument {
         , esc_meta_(0)
         , esc_lookup_(0)
         , force_depth_(NA_INTEGER)
-        , force_source_(LAZR_NA_STRING)
-        , companion_position_(NA_INTEGER)
-        , event_sequence_("")
-        , effect_sequence_("")
-        , reflection_sequence_("") {
+        , comp_pos_(NA_INTEGER)
+        , event_seq_("")
+        , effect_seq_("")
+        , ref_seq_("") {
         cap_force_ = preforced;
     }
 
     int get_id() {
-        return argument_id_;
+        return arg_id_;
     }
 
     int get_call_id() {
@@ -64,18 +57,18 @@ class Argument {
     }
 
     int get_position() {
-        return argument_position_;
+        return formal_pos_;
     }
 
-    void set_force_position(int force_position) {
-        force_position_ = force_position;
+    void set_force_position(int force_pos) {
+        force_pos_ = force_pos;
     }
 
-    void set_actual_position(int actual_position) {
-        actual_position_ = actual_position;
+    void set_actual_position(int actual_pos) {
+        actual_pos_ = actual_pos;
     }
 
-    void force(int force_depth, int companion_position) {
+    void force(int force_depth, int comp_pos) {
         if (escaped_) {
             ++esc_force_;
         } else {
@@ -84,11 +77,11 @@ class Argument {
         force_depth_ = force_depth;
 
         add_event_('F');
-        companion_position_ = companion_position;
+        comp_pos_ = comp_pos;
     }
 
-    void set_value_type(const std::string& value_type) {
-        value_type_ = value_type;
+    void set_value_type(const std::string& val_type) {
+        val_type_ = val_type;
     }
 
     void lookup() {
@@ -122,15 +115,15 @@ class Argument {
 
     void side_effect(const std::string& type) {
         if (type == "asn") {
-            effect_sequence_.push_back('A');
+            effect_seq_.push_back('A');
         }
 
         else if (type == "rem") {
-            effect_sequence_.push_back('R');
+            effect_seq_.push_back('R');
         }
 
         else if (type == "def") {
-            effect_sequence_.push_back('D');
+            effect_seq_.push_back('D');
         }
 
         else {
@@ -139,30 +132,27 @@ class Argument {
     }
 
     void reflection(const std::string& name) {
-        if (!reflection_sequence_.empty()) {
-            reflection_sequence_.push_back('|');
+        if (!ref_seq_.empty()) {
+            ref_seq_.push_back('|');
         }
-        reflection_sequence_.append(name);
+        ref_seq_.append(name);
     }
 
     void to_sexp(int index,
-                 SEXP r_argument_id,
+                 SEXP r_arg_id,
                  SEXP r_call_id,
-                 SEXP r_function_id,
-                 SEXP r_function_name,
-                 SEXP r_environment_id,
-                 SEXP r_environment_name,
-                 SEXP r_argument_position,
-                 SEXP r_force_position,
-                 SEXP r_actual_position,
-                 SEXP r_argument_name,
-                 SEXP r_argument_count,
+                 SEXP r_fun_id,
+                 SEXP r_call_env_id,
+                 SEXP r_arg_name,
+                 SEXP r_formal_pos,
+                 SEXP r_force_pos,
+                 SEXP r_actual_pos,
+                 SEXP r_arg_count,
                  SEXP r_vararg,
                  SEXP r_missing,
-                 SEXP r_argument_type,
-                 SEXP r_expression_type,
-                 SEXP r_transitive_type,
-                 SEXP r_value_type,
+                 SEXP r_arg_type,
+                 SEXP r_expr_type,
+                 SEXP r_val_type,
                  SEXP r_preforced,
                  SEXP r_cap_force,
                  SEXP r_cap_meta,
@@ -172,63 +162,54 @@ class Argument {
                  SEXP r_esc_meta,
                  SEXP r_esc_lookup,
                  SEXP r_force_depth,
-                 SEXP r_force_source,
-                 SEXP r_companion_position,
-                 SEXP r_event_sequence,
-                 SEXP r_effect_sequence,
-                 SEXP r_reflection_sequence) {
-        INTEGER(r_argument_id)[index] = argument_id_;
-        INTEGER(r_call_id)[index] = call_id_;
-        INTEGER(r_function_id)[index] = function_id_;
-        SET_STRING_ELT(r_function_name, index, make_char(function_name_));
-        INTEGER(r_environment_id)[index] = environment_id_;
-        SET_STRING_ELT(r_environment_name, index, make_char(environment_name_));
-        INTEGER(r_argument_position)[index] = argument_position_;
-        INTEGER(r_force_position)[index] = force_position_;
-        INTEGER(r_actual_position)[index] = actual_position_;
-        SET_STRING_ELT(r_argument_name, index, make_char(argument_name_));
-        INTEGER(r_argument_count)[index] = argument_count_;
-        LOGICAL(r_vararg)[index] = vararg_;
-        LOGICAL(r_missing)[index] = missing_;
-        SET_STRING_ELT(r_argument_type, index, make_char(argument_type_));
-        SET_STRING_ELT(r_expression_type, index, make_char(expression_type_));
-        SET_STRING_ELT(r_transitive_type, index, make_char(transitive_type_));
-        SET_STRING_ELT(r_value_type, index, make_char(value_type_));
-        INTEGER(r_preforced)[index] = preforced_;
-        INTEGER(r_cap_force)[index] = cap_force_;
-        INTEGER(r_cap_meta)[index] = cap_meta_;
-        INTEGER(r_cap_lookup)[index] = cap_lookup_;
-        LOGICAL(r_escaped)[index] = escaped_;
-        INTEGER(r_esc_force)[index] = esc_force_;
-        INTEGER(r_esc_meta)[index] = esc_meta_;
-        INTEGER(r_esc_lookup)[index] = esc_lookup_;
-        INTEGER(r_force_depth)[index] = force_depth_;
-        SET_STRING_ELT(r_force_source, index, make_char(force_source_));
-        INTEGER(r_companion_position)[index] = companion_position_;
-        SET_STRING_ELT(r_event_sequence, index, make_char(event_sequence_));
-        SET_STRING_ELT(r_effect_sequence, index, make_char(effect_sequence_));
-        SET_STRING_ELT(
-            r_reflection_sequence, index, make_char(reflection_sequence_));
+                 SEXP r_comp_pos,
+                 SEXP r_event_seq,
+                 SEXP r_effect_seq,
+                 SEXP r_ref_seq) {
+        SET_INTEGER_ELT(r_arg_id, index, arg_id_);
+        SET_INTEGER_ELT(r_call_id, index, call_id_);
+        SET_INTEGER_ELT(r_fun_id, index, fun_id_);
+        SET_INTEGER_ELT(r_call_env_id, index, call_env_id_);
+        SET_STRING_ELT(r_arg_name, index, make_char(arg_name_));
+        SET_INTEGER_ELT(r_formal_pos, index, formal_pos_);
+        SET_INTEGER_ELT(r_force_pos, index, force_pos_);
+        SET_INTEGER_ELT(r_actual_pos, index, actual_pos_);
+        SET_INTEGER_ELT(r_arg_count, index, arg_count_);
+        SET_LOGICAL_ELT(r_vararg, index, vararg_);
+        SET_LOGICAL_ELT(r_missing, index, missing_);
+        SET_STRING_ELT(r_arg_type, index, make_char(arg_type_));
+        SET_STRING_ELT(r_expr_type, index, make_char(expr_type_));
+        SET_STRING_ELT(r_val_type, index, make_char(val_type_));
+        SET_INTEGER_ELT(r_preforced, index, preforced_);
+        SET_INTEGER_ELT(r_cap_force, index, cap_force_);
+        SET_INTEGER_ELT(r_cap_meta, index, cap_meta_);
+        SET_INTEGER_ELT(r_cap_lookup, index, cap_lookup_);
+        SET_LOGICAL_ELT(r_escaped, index, escaped_);
+        SET_INTEGER_ELT(r_esc_force, index, esc_force_);
+        SET_INTEGER_ELT(r_esc_meta, index, esc_meta_);
+        SET_INTEGER_ELT(r_esc_lookup, index, esc_lookup_);
+        SET_INTEGER_ELT(r_force_depth, index, force_depth_);
+        SET_INTEGER_ELT(r_comp_pos, index, comp_pos_);
+        SET_STRING_ELT(r_event_seq, index, make_char(event_seq_));
+        SET_STRING_ELT(r_effect_seq, index, make_char(effect_seq_));
+        SET_STRING_ELT(r_ref_seq, index, make_char(ref_seq_));
     }
 
   private:
-    int argument_id_;
+    int arg_id_;
     int call_id_;
-    int function_id_;
-    std::string function_name_;
-    int environment_id_;
-    std::string environment_name_;
-    int argument_position_;
-    int force_position_;
-    int actual_position_;
-    std::string argument_name_;
-    int argument_count_;
+    int fun_id_;
+    int call_env_id_;
+    std::string arg_name_;
+    int formal_pos_;
+    int force_pos_;
+    int actual_pos_;
+    int arg_count_;
     int vararg_;
     int missing_;
-    std::string argument_type_;
-    std::string expression_type_;
-    std::string transitive_type_;
-    std::string value_type_;
+    std::string arg_type_;
+    std::string expr_type_;
+    std::string val_type_;
     int preforced_;
     int cap_force_;
     int cap_meta_;
@@ -238,14 +219,13 @@ class Argument {
     int esc_meta_;
     int esc_lookup_;
     int force_depth_;
-    std::string force_source_;
-    int companion_position_;
-    std::string event_sequence_;
-    std::string effect_sequence_;
-    std::string reflection_sequence_;
+    int comp_pos_;
+    std::string event_seq_;
+    std::string effect_seq_;
+    std::string ref_seq_;
 
     void add_event_(char event) {
-        event_sequence_.push_back(event);
+        event_seq_.push_back(event);
     }
 };
 
