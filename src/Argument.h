@@ -44,7 +44,7 @@ class Argument {
         , comp_pos_(NA_INTEGER)
         , event_seq_("")
         , effect_seq_("")
-        , ref_seq_("") {
+        , ref_seq_({}) {
         cap_force_ = preforced;
     }
 
@@ -132,10 +132,17 @@ class Argument {
     }
 
     void reflection(const std::string& name) {
-        if (!ref_seq_.empty()) {
-            ref_seq_.push_back('|');
+        if (ref_seq_.empty()) {
+            ref_seq_.push_back({name, 1});
         }
-        ref_seq_.append(name);
+
+        else if (ref_seq_.back().first == name) {
+            ++ref_seq_.back().second;
+        }
+
+        else {
+            ref_seq_.push_back({name, 1});
+        }
     }
 
     void to_sexp(int index,
@@ -192,7 +199,7 @@ class Argument {
         SET_INTEGER_ELT(r_comp_pos, index, comp_pos_);
         SET_STRING_ELT(r_event_seq, index, make_char(event_seq_));
         SET_STRING_ELT(r_effect_seq, index, make_char(effect_seq_));
-        SET_STRING_ELT(r_ref_seq, index, make_char(ref_seq_));
+        SET_STRING_ELT(r_ref_seq, index, make_char(to_string(ref_seq_)));
     }
 
   private:
@@ -222,7 +229,7 @@ class Argument {
     int comp_pos_;
     std::string event_seq_;
     std::string effect_seq_;
-    std::string ref_seq_;
+    std::vector<std::pair<std::string, int>> ref_seq_;
 
     void add_event_(char event) {
         event_seq_.push_back(event);

@@ -97,3 +97,40 @@ SEXP make_char(const std::string& input) {
 std::string charptr_to_string(const char* charptr) {
     return charptr == nullptr ? LAZR_NA_STRING : std::string(charptr);
 }
+
+std::string to_string(const std::vector<std::pair<std::string, int>>& seq) {
+    std::string str;
+    int size = seq.size();
+
+    for (int i = 0; i < size - 1; ++i) {
+        const auto& pair = seq[i];
+        str.append(pair.first);
+        str.push_back(':');
+        str.append(std::to_string(pair.second));
+        str.push_back('|');
+    }
+    if (size != 0) {
+        const auto& pair = seq[size - 1];
+        str.append(pair.first);
+        str.push_back(':');
+        str.append(std::to_string(pair.second));
+    }
+
+    return str;
+}
+
+std::string to_string(const std::vector<int>& seq) {
+    std::string str;
+    int size = seq.size();
+
+    for (int i = 0; i < size - 1; ++i) {
+        str.append(std::to_string(seq[i]));
+        str.append("|");
+    }
+
+    if (size != 0) {
+        str.append(std::to_string(seq[size - 1]));
+    }
+
+    return str;
+}

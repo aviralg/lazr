@@ -51,10 +51,8 @@ class Call {
         SET_INTEGER_ELT(r_call_env_id, position, call_env_id_);
         SET_LOGICAL_ELT(r_successful, position, successful_);
         SET_STRING_ELT(r_result_type, position, make_char(result_type_));
-
-        std::string force_order_str = intvec_to_string_(force_order_);
         SET_STRING_ELT(
-            r_force_order, position, make_char(force_order_str.c_str()));
+            r_force_order, position, make_char(to_string(force_order_)));
     }
 
   private:
@@ -65,22 +63,6 @@ class Call {
     std::string result_type_;
     std::vector<int> force_order_;
     bool exit_;
-
-    std::string intvec_to_string_(const std::vector<int>& vec) {
-        std::string str;
-        int size = vec.size();
-
-        for (int i = 0; i < size - 1; ++i) {
-            str.append(std::to_string(vec[i]));
-            str.append("|");
-        }
-
-        if (size != 0) {
-            str.append(std::to_string(vec[size - 1]));
-        }
-
-        return str;
-    }
 };
 
 #endif /* LAZR_CALL_H */

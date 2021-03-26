@@ -26,4 +26,8 @@ SEXP make_char(const std::string& input);
 
 std::string charptr_to_string(const char* charptr);
 
+std::string to_string(const std::vector<std::pair<std::string, int>>& seq);
+
+std::string to_string(const std::vector<int>& seq);
+
 #endif /* LAZR_UTILITIES_H */
