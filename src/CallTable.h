@@ -33,7 +33,16 @@ class CallTable {
             return iter->second;
         }
 
-        Call* call_data = new Call(call_id, function->get_id(), env_id);
+        instrumentr_language_t call_expr =
+            instrumentr_call_get_expression(call);
+
+        SEXP r_call_expr = instrumentr_language_get_sexp(call_expr);
+
+        std::vector<std::string> call_exprs =
+            instrumentr_sexp_to_string(r_call_expr, true);
+
+        Call* call_data =
+            new Call(call_id, function->get_id(), env_id, call_exprs.front());
 
         auto result = table_.insert({call_id, call_data});
         return result.first->second;
@@ -56,6 +65,7 @@ class CallTable {
         SEXP r_successful = PROTECT(allocVector(LGLSXP, size));
         SEXP r_result_type = PROTECT(allocVector(STRSXP, size));
         SEXP r_force_order = PROTECT(allocVector(STRSXP, size));
+        SEXP r_call_expr = PROTECT(allocVector(STRSXP, size));
 
         int index = 0;
         for (auto iter = table_.begin(); iter != table_.end();
@@ -68,7 +78,8 @@ class CallTable {
                           r_env_id,
                           r_successful,
                           r_result_type,
-                          r_force_order);
+                          r_force_order,
+                          r_call_expr);
         }
 
         std::vector<SEXP> columns({r_call_id,
@@ -76,18 +87,20 @@ class CallTable {
                                    r_env_id,
                                    r_successful,
                                    r_result_type,
-                                   r_force_order});
+                                   r_force_order,
+                                   r_call_expr});
 
         std::vector<std::string> names({"call_id",
                                         "fun_id",
                                         "env_id",
                                         "successful",
                                         "result_type",
-                                        "force_order"});
+                                        "force_order",
+                                        "call_expr"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(6);
+        UNPROTECT(7);
 
         return df;
     }
