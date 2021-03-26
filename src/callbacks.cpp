@@ -101,6 +101,37 @@ void process_arguments(ArgumentTable& argument_table,
     }
 }
 
+void process_actuals(ArgumentTable& argument_table, instrumentr_call_t call) {
+    int call_id = instrumentr_call_get_id(call);
+
+    instrumentr_value_t arguments = instrumentr_call_get_arguments(call);
+
+    int index = 0;
+
+    while (!instrumentr_value_is_null(arguments)) {
+        instrumentr_pairlist_t pairlist =
+            instrumentr_value_as_pairlist(arguments);
+
+        instrumentr_value_t value = instrumentr_pairlist_get_car(pairlist);
+
+        if (instrumentr_value_is_promise(value)) {
+            instrumentr_promise_t promise = instrumentr_value_as_promise(value);
+
+            int promise_id = instrumentr_promise_get_id(promise);
+
+            Argument* argument =
+                argument_table.lookup_permissive(promise_id, call_id);
+
+            if (argument != nullptr) {
+                argument->set_actual_position(index);
+            }
+        }
+
+        ++index;
+        arguments = instrumentr_pairlist_get_cdr(pairlist);
+    }
+}
+
 void closure_call_entry_callback(instrumentr_tracer_t tracer,
                                  instrumentr_callback_t callback,
                                  instrumentr_state_t state,
@@ -139,6 +170,8 @@ void closure_call_entry_callback(instrumentr_tracer_t tracer,
 
     process_arguments(
         argument_table, call, closure, call_data, function_data, fun_env_data);
+
+    process_actuals(argument_table, call);
 }
 
 void closure_call_exit_callback(instrumentr_tracer_t tracer,
