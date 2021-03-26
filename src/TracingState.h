@@ -7,6 +7,7 @@
 #include "ArgumentTable.h"
 #include "FunctionTable.h"
 #include "SideEffectsTable.h"
+#include "ReflectionTable.h"
 #include <instrumentr/instrumentr.h>
 
 class TracingState {
@@ -54,6 +55,14 @@ class TracingState {
         return se_table_;
     }
 
+    ReflectionTable& get_reflection_table() {
+        return reflection_table_;
+    }
+
+    const ReflectionTable& get_reflection_table() const {
+        return reflection_table_;
+    }
+
     static void initialize(instrumentr_state_t state);
 
     static void finalize(instrumentr_state_t state);
@@ -66,6 +75,7 @@ class TracingState {
     ArgumentTable argument_table_;
     FunctionTable function_table_;
     SideEffectsTable se_table_;
+    ReflectionTable reflection_table_;
 };
 
 #endif /* LAZR_TRACING_STATE_H */

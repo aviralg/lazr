@@ -23,6 +23,8 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
 
     ArgumentTable& arg_table = tracing_state.get_argument_table();
 
+    ReflectionTable& ref_table = tracing_state.get_reflection_table();
+
     std::string name = instrumentr_builtin_get_name(builtin);
 
     /* NOTE: sys.status calls 3 of these functions so it is not added to the
@@ -38,6 +40,7 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
     instrumentr_call_stack_t call_stack =
         instrumentr_state_get_call_stack(state);
 
+    bool transitive = false;
     for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
         instrumentr_frame_t frame =
             instrumentr_call_stack_peek_frame(call_stack, i);
@@ -60,6 +63,10 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
         for (auto& arg: args) {
             arg->reflection(name);
         }
+
+        ref_table.insert(name, transitive, promise);
+
+        transitive = true;
     }
 }
 
