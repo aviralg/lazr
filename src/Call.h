@@ -7,16 +7,10 @@
 
 class Call {
   public:
-    Call(int call_id,
-         int function_id,
-         const std::string& function_name,
-         int environment_id,
-         const std::string& environment_name)
+    Call(int call_id, int fun_id, int call_env_id)
         : call_id_(call_id)
-        , function_id_(function_id)
-        , function_name_(function_name)
-        , environment_id_(environment_id)
-        , environment_name_(environment_name)
+        , fun_id_(fun_id)
+        , call_env_id_(call_env_id)
         , successful_(false)
         , result_type_(LAZR_NA_STRING)
         , force_order_({})
@@ -45,30 +39,17 @@ class Call {
         return force_order_.size();
     }
 
-    const std::string& get_environment_name() const {
-        return environment_name_;
-    }
-
-    const std::string& get_function_name() const {
-        return function_name_;
-    }
-
     void to_sexp(int position,
                  SEXP r_call_id,
-                 SEXP r_function_id,
-                 SEXP r_function_name,
-                 SEXP r_environment_id,
-                 SEXP r_environment_name,
+                 SEXP r_fun_id,
+                 SEXP r_call_env_id,
                  SEXP r_successful,
                  SEXP r_result_type,
                  SEXP r_force_order) {
         SET_INTEGER_ELT(r_call_id, position, call_id_);
-        SET_INTEGER_ELT(r_function_id, position, function_id_);
-        SET_STRING_ELT(r_function_name, position, make_char(function_name_));
-        SET_INTEGER_ELT(r_environment_id, position, environment_id_);
-        SET_STRING_ELT(
-            r_environment_name, position, make_char(environment_name_));
-        LOGICAL(r_successful)[position] = successful_;
+        SET_INTEGER_ELT(r_fun_id, position, fun_id_);
+        SET_INTEGER_ELT(r_call_env_id, position, call_env_id_);
+        SET_LOGICAL_ELT(r_successful, position, successful_);
         SET_STRING_ELT(r_result_type, position, make_char(result_type_));
 
         std::string force_order_str = intvec_to_string_(force_order_);
@@ -78,10 +59,8 @@ class Call {
 
   private:
     int call_id_;
-    int function_id_;
-    const std::string function_name_;
-    int environment_id_;
-    const std::string environment_name_;
+    int fun_id_;
+    int call_env_id_;
     bool successful_;
     std::string result_type_;
     std::vector<int> force_order_;

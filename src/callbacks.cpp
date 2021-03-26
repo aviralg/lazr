@@ -162,7 +162,7 @@ void closure_call_entry_callback(instrumentr_tracer_t tracer,
 
     CallTable& call_table = tracing_state.get_call_table();
 
-    Call* call_data = call_table.insert(call, function_data, call_env_data);
+    Call* call_data = call_table.insert(call, function_data);
 
     /* handle arguments */
 

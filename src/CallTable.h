@@ -19,10 +19,13 @@ class CallTable {
         table_.clear();
     }
 
-    Call* insert(instrumentr_call_t call,
-                 Function* function,
-                 Environment* environment) {
+    Call* insert(instrumentr_call_t call, Function* function) {
         int call_id = instrumentr_call_get_id(call);
+
+        instrumentr_environment_t environment =
+            instrumentr_call_get_environment(call);
+
+        int env_id = instrumentr_environment_get_id(environment);
 
         auto iter = table_.find(call_id);
 
@@ -30,11 +33,7 @@ class CallTable {
             return iter->second;
         }
 
-        Call* call_data = new Call(call_id,
-                                   function->get_id(),
-                                   function->get_name(),
-                                   environment->get_id(),
-                                   environment->get_name());
+        Call* call_data = new Call(call_id, function->get_id(), env_id);
 
         auto result = table_.insert({call_id, call_data});
         return result.first->second;
@@ -52,10 +51,8 @@ class CallTable {
         int size = table_.size();
 
         SEXP r_call_id = PROTECT(allocVector(INTSXP, size));
-        SEXP r_function_id = PROTECT(allocVector(INTSXP, size));
-        SEXP r_function_name = PROTECT(allocVector(STRSXP, size));
-        SEXP r_environment_id = PROTECT(allocVector(INTSXP, size));
-        SEXP r_environment_name = PROTECT(allocVector(STRSXP, size));
+        SEXP r_fun_id = PROTECT(allocVector(INTSXP, size));
+        SEXP r_env_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_successful = PROTECT(allocVector(LGLSXP, size));
         SEXP r_result_type = PROTECT(allocVector(STRSXP, size));
         SEXP r_force_order = PROTECT(allocVector(STRSXP, size));
@@ -67,36 +64,30 @@ class CallTable {
 
             call->to_sexp(index,
                           r_call_id,
-                          r_function_id,
-                          r_function_name,
-                          r_environment_id,
-                          r_environment_name,
+                          r_fun_id,
+                          r_env_id,
                           r_successful,
                           r_result_type,
                           r_force_order);
         }
 
         std::vector<SEXP> columns({r_call_id,
-                                   r_function_id,
-                                   r_function_name,
-                                   r_environment_id,
-                                   r_environment_name,
+                                   r_fun_id,
+                                   r_env_id,
                                    r_successful,
                                    r_result_type,
                                    r_force_order});
 
         std::vector<std::string> names({"call_id",
-                                        "function_id",
-                                        "function_name",
-                                        "environment_id",
-                                        "environment_name",
+                                        "fun_id",
+                                        "env_id",
                                         "successful",
                                         "result_type",
                                         "force_order"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(8);
+        UNPROTECT(6);
 
         return df;
     }
