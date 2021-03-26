@@ -433,6 +433,13 @@ void tracing_entry_callback(instrumentr_tracer_t tracer,
 void tracing_exit_callback(instrumentr_tracer_t tracer,
                            instrumentr_callback_t callback,
                            instrumentr_state_t state) {
+
+    TracingState& tracing_state = TracingState::lookup(state);
+    EnvironmentTable& env_table = tracing_state.get_environment_table();
+    FunctionTable& fun_table = tracing_state.get_function_table();
+
+    fun_table.infer_qualified_names(env_table);
+
     TracingState::finalize(state);
 }
 

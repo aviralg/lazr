@@ -25,6 +25,10 @@ class Function {
         return fun_id_;
     }
 
+    int get_fun_env_id() {
+        return fun_env_id_;
+    }
+
     void set_parent_id(int parent_fun_id) {
         parent_fun_id_ = parent_fun_id;
     }

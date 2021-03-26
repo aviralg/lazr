@@ -6,8 +6,7 @@
 
 class Environment {
   public:
-    Environment(int env_id,
-                int call_id)
+    Environment(int env_id, int call_id)
         : env_id_(env_id)
         , env_type_(LAZR_NA_STRING)
         , env_name_(LAZR_NA_STRING)
@@ -18,6 +17,9 @@ class Environment {
         return env_id_;
     }
 
+    bool has_name() const {
+        return env_name_ != LAZR_NA_STRING;
+    }
     const std::string& get_name() const {
         return env_name_;
     }

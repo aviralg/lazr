@@ -61,8 +61,6 @@ class FunctionTable {
     }
 
     SEXP to_sexp() {
-        infer_qualified_names_();
-
         int size = table_.size();
 
         SEXP r_fun_id = PROTECT(allocVector(INTSXP, size));
@@ -116,15 +114,19 @@ class FunctionTable {
         return df;
     }
 
-    void infer_qualified_names_() {
+    void infer_qualified_names(EnvironmentTable& env_tab) {
         for (auto iter = table_.begin(); iter != table_.end(); ++iter) {
             int id = iter->first;
             Function* fun = iter->second;
-            infer_qualified_name_helper_(fun);
+            infer_qualified_name_helper_(fun, env_tab);
         }
     }
 
-    std::string infer_qualified_name_helper_(Function* fun) {
+  private:
+    std::unordered_map<int, Function*> table_;
+
+    std::string infer_qualified_name_helper_(Function* fun,
+                                             EnvironmentTable& env_tab) {
         /* if function does not have its own name, no use computing
          * qualified parent's name. */
         if (!fun->has_name()) {
@@ -145,7 +147,8 @@ class FunctionTable {
 
             Function* parent = lookup(parent_fun_id);
 
-            std::string parent_name = infer_qualified_name_helper_(parent);
+            std::string parent_name =
+                infer_qualified_name_helper_(parent, env_tab);
 
             if (parent_name == LAZR_NA_STRING) {
                 fun_name = LAZR_NA_STRING;
@@ -154,13 +157,24 @@ class FunctionTable {
             }
         }
 
+        else {
+            int fun_env_id = fun->get_fun_env_id();
+
+            Environment* env_data = env_tab.lookup(fun_env_id);
+
+            if (env_data->has_name() && (env_data->get_type() == "namespace" ||
+                                         env_data->get_type() == "package")) {
+                std::string pack_name = env_data->get_name();
+                fun_name = pack_name + "::" + fun_name;
+            } else {
+                fun_name = LAZR_NA_STRING;
+            }
+        }
+
         fun->set_qualified_name(fun_name);
 
         return fun_name;
     }
-
-  private:
-    std::unordered_map<int, Function*> table_;
 };
 
 #endif /* LAZR_FUNCTION_TABLE_H */
