@@ -138,6 +138,8 @@ class ArgumentTable {
         SEXP r_esc_force = PROTECT(allocVector(INTSXP, size_));
         SEXP r_esc_meta = PROTECT(allocVector(INTSXP, size_));
         SEXP r_esc_lookup = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_con_force = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_con_lookup = PROTECT(allocVector(INTSXP, size_));
         SEXP r_force_depth = PROTECT(allocVector(INTSXP, size_));
         SEXP r_comp_pos = PROTECT(allocVector(INTSXP, size_));
         SEXP r_event_seq = PROTECT(allocVector(STRSXP, size_));
@@ -179,6 +181,8 @@ class ArgumentTable {
                                   r_esc_force,
                                   r_esc_meta,
                                   r_esc_lookup,
+                                  r_con_force,
+                                  r_con_lookup,
                                   r_force_depth,
                                   r_comp_pos,
                                   r_event_seq,
@@ -216,6 +220,8 @@ class ArgumentTable {
                                    r_esc_force,
                                    r_esc_meta,
                                    r_esc_lookup,
+                                   r_con_force,
+                                   r_con_lookup,
                                    r_force_depth,
                                    r_comp_pos,
                                    r_event_seq,
@@ -250,6 +256,8 @@ class ArgumentTable {
                                         "esc_force",
                                         "esc_meta",
                                         "esc_lookup",
+                                        "con_force",
+                                        "con_lookup",
                                         "force_depth",
                                         "comp_pos",
                                         "event_seq",
@@ -264,7 +272,7 @@ class ArgumentTable {
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(33);
+        UNPROTECT(35);
 
         return df;
     }

@@ -19,12 +19,6 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
                                  instrumentr_application_t application,
                                  instrumentr_builtin_t builtin,
                                  instrumentr_call_t call) {
-    TracingState& tracing_state = TracingState::lookup(state);
-
-    ArgumentTable& arg_table = tracing_state.get_argument_table();
-
-    ReflectionTable& ref_table = tracing_state.get_reflection_table();
-
     std::string name = instrumentr_builtin_get_name(builtin);
 
     /* NOTE: sys.status calls 3 of these functions so it is not added to the
@@ -36,6 +30,12 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
         name != "as.environment" && name != "pos.to.env") {
         return;
     }
+
+    TracingState& tracing_state = TracingState::lookup(state);
+
+    ArgumentTable& arg_table = tracing_state.get_argument_table();
+
+    ReflectionTable& ref_table = tracing_state.get_reflection_table();
 
     instrumentr_call_stack_t call_stack =
         instrumentr_state_get_call_stack(state);
@@ -596,6 +596,43 @@ void variable_lookup(instrumentr_tracer_t tracer,
 
     process_reads(
         state, environment, 'L', varname, arg_table, env_table, effects_table);
+}
+
+void function_context_lookup(instrumentr_tracer_t tracer,
+                             instrumentr_callback_t callback,
+                             instrumentr_state_t state,
+                             instrumentr_application_t application,
+                             instrumentr_symbol_t symbol,
+                             instrumentr_value_t value,
+                             instrumentr_environment_t environment) {
+    if (!instrumentr_value_is_promise(value)) {
+        return;
+    }
+
+    instrumentr_promise_t promise = instrumentr_value_as_promise(value);
+
+    if (instrumentr_promise_get_type(promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return;
+    }
+
+    TracingState& tracing_state = TracingState::lookup(state);
+
+    ArgumentTable& arg_table = tracing_state.get_argument_table();
+
+    int promise_id = instrumentr_promise_get_id(promise);
+
+    bool forced = instrumentr_promise_is_forced(promise);
+
+    const std::vector<Argument*>& args = arg_tab.lookup(promise_id);
+
+    for (auto arg: args) {
+        arg->set_context_lookup();
+
+        if (!forced) {
+            arg->set_context_force();
+        }
+    }
 }
 
 void process_writes(instrumentr_state_t state,

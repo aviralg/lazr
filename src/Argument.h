@@ -40,6 +40,8 @@ class Argument {
         , esc_force_(0)
         , esc_meta_(0)
         , esc_lookup_(0)
+        , con_force_(0)
+        , con_lookup_(0)
         , force_depth_(NA_INTEGER)
         , comp_pos_(NA_INTEGER)
         , event_seq_("")
@@ -76,6 +78,14 @@ class Argument {
 
     void set_actual_position(int actual_pos) {
         actual_pos_ = actual_pos;
+    }
+
+    void set_context_lookup() {
+        ++con_lookup_;
+    }
+
+    void set_context_force() {
+        ++con_force_;
     }
 
     void force(int force_depth, int comp_pos) {
@@ -167,6 +177,8 @@ class Argument {
                  SEXP r_esc_force,
                  SEXP r_esc_meta,
                  SEXP r_esc_lookup,
+                 SEXP r_con_force,
+                 SEXP r_con_lookup,
                  SEXP r_force_depth,
                  SEXP r_comp_pos,
                  SEXP r_event_seq,
@@ -200,6 +212,8 @@ class Argument {
         SET_INTEGER_ELT(r_esc_force, index, esc_force_);
         SET_INTEGER_ELT(r_esc_meta, index, esc_meta_);
         SET_INTEGER_ELT(r_esc_lookup, index, esc_lookup_);
+        SET_INTEGER_ELT(r_con_force, index, con_force_);
+        SET_INTEGER_ELT(r_con_lookup, index, con_lookup_);
         SET_INTEGER_ELT(r_force_depth, index, force_depth_);
         SET_INTEGER_ELT(r_comp_pos, index, comp_pos_);
         SET_STRING_ELT(r_event_seq, index, make_char(event_seq_));
@@ -237,6 +251,8 @@ class Argument {
     int esc_force_;
     int esc_meta_;
     int esc_lookup_;
+    int con_force_;
+    int con_lookup_;
     int force_depth_;
     int comp_pos_;
     std::string event_seq_;
