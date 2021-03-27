@@ -211,6 +211,37 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
     call_data->exit(result_type);
 }
 
+void compute_meta_depth(instrumentr_state_t state,
+                        Argument* argument,
+                        int call_id) {
+    int meta_depth = 0;
+    bool found = false;
+
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    /* topmost frame is substitute call */
+    for (int i = 1; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (!instrumentr_frame_is_call(frame)) {
+            continue;
+        }
+
+        instrumentr_call_t call = instrumentr_frame_as_call(frame);
+
+        int current_call_id = instrumentr_call_get_id(call);
+
+        if (current_call_id == call_id) {
+            ++meta_depth;
+            found = true;
+        }
+    }
+
+    argument->metaprogram(found ? meta_depth : NA_INTEGER);
+}
+
 void promise_substitute_callback(instrumentr_tracer_t tracer,
                                  instrumentr_callback_t callback,
                                  instrumentr_state_t state,
@@ -241,7 +272,7 @@ void promise_substitute_callback(instrumentr_tracer_t tracer,
             argument->escaped();
         }
 
-        argument->metaprogram();
+        compute_meta_depth(state, argument, call_id);
     }
 }
 
@@ -618,7 +649,7 @@ void function_context_lookup(instrumentr_tracer_t tracer,
 
     TracingState& tracing_state = TracingState::lookup(state);
 
-    ArgumentTable& arg_table = tracing_state.get_argument_table();
+    ArgumentTable& arg_tab = tracing_state.get_argument_table();
 
     int promise_id = instrumentr_promise_get_id(promise);
 

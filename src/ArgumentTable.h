@@ -141,6 +141,7 @@ class ArgumentTable {
         SEXP r_con_force = PROTECT(allocVector(INTSXP, size_));
         SEXP r_con_lookup = PROTECT(allocVector(INTSXP, size_));
         SEXP r_force_depth = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_meta_depth = PROTECT(allocVector(INTSXP, size_));
         SEXP r_comp_pos = PROTECT(allocVector(INTSXP, size_));
         SEXP r_event_seq = PROTECT(allocVector(STRSXP, size_));
         SEXP r_self_effect_seq = PROTECT(allocVector(STRSXP, size_));
@@ -184,6 +185,7 @@ class ArgumentTable {
                                   r_con_force,
                                   r_con_lookup,
                                   r_force_depth,
+                                  r_meta_depth,
                                   r_comp_pos,
                                   r_event_seq,
                                   r_self_effect_seq,
@@ -223,6 +225,7 @@ class ArgumentTable {
                                    r_con_force,
                                    r_con_lookup,
                                    r_force_depth,
+                                   r_meta_depth,
                                    r_comp_pos,
                                    r_event_seq,
                                    r_self_effect_seq,
@@ -259,6 +262,7 @@ class ArgumentTable {
                                         "con_force",
                                         "con_lookup",
                                         "force_depth",
+                                        "meta_depth",
                                         "comp_pos",
                                         "event_seq",
                                         "self_effect_seq",
@@ -272,7 +276,7 @@ class ArgumentTable {
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(35);
+        UNPROTECT(36);
 
         return df;
     }

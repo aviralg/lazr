@@ -43,6 +43,7 @@ class Argument {
         , con_force_(0)
         , con_lookup_(0)
         , force_depth_(NA_INTEGER)
+        , meta_depth_(NA_INTEGER)
         , comp_pos_(NA_INTEGER)
         , event_seq_("")
         , self_effect_seq_("")
@@ -114,7 +115,7 @@ class Argument {
         add_event_('L');
     }
 
-    void metaprogram() {
+    void metaprogram(int meta_depth) {
         if (escaped_) {
             ++esc_meta_;
         } else {
@@ -122,6 +123,7 @@ class Argument {
         }
 
         add_event_('M');
+        meta_depth_ = meta_depth;
     }
 
     void escaped() {
@@ -180,6 +182,7 @@ class Argument {
                  SEXP r_con_force,
                  SEXP r_con_lookup,
                  SEXP r_force_depth,
+                 SEXP r_meta_depth,
                  SEXP r_comp_pos,
                  SEXP r_event_seq,
                  SEXP r_self_effect_seq,
@@ -215,6 +218,7 @@ class Argument {
         SET_INTEGER_ELT(r_con_force, index, con_force_);
         SET_INTEGER_ELT(r_con_lookup, index, con_lookup_);
         SET_INTEGER_ELT(r_force_depth, index, force_depth_);
+        SET_INTEGER_ELT(r_meta_depth, index, meta_depth_);
         SET_INTEGER_ELT(r_comp_pos, index, comp_pos_);
         SET_STRING_ELT(r_event_seq, index, make_char(event_seq_));
         SET_STRING_ELT(r_self_effect_seq, index, make_char(self_effect_seq_));
@@ -254,6 +258,7 @@ class Argument {
     int con_force_;
     int con_lookup_;
     int force_depth_;
+    int meta_depth_;
     int comp_pos_;
     std::string event_seq_;
     std::string self_effect_seq_;
