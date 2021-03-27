@@ -46,7 +46,11 @@ class Argument {
         , self_effect_seq_("")
         , effect_seq_("")
         , self_ref_seq_({})
-        , ref_seq_({}) {
+        , ref_seq_({})
+        , parent_fun_id_(NA_INTEGER)
+        , parent_formal_pos_(NA_INTEGER)
+        , parent_call_id_(NA_INTEGER)
+        , parent_arg_id_(NA_INTEGER) {
         cap_force_ = preforced;
     }
 
@@ -58,7 +62,11 @@ class Argument {
         return call_id_;
     }
 
-    int get_position() {
+    int get_fun_id() {
+        return fun_id_;
+    }
+
+    int get_formal_pos() {
         return formal_pos_;
     }
 
@@ -129,6 +137,13 @@ class Argument {
         }
     }
 
+    void set_parent(Argument* parent_arg) {
+        parent_fun_id_ = parent_arg->get_fun_id();
+        parent_formal_pos_ = parent_arg->get_formal_pos();
+        parent_call_id_ = parent_arg->get_call_id();
+        parent_arg_id_ = parent_arg->get_id();
+    }
+
     void to_sexp(int index,
                  SEXP r_arg_id,
                  SEXP r_call_id,
@@ -158,7 +173,11 @@ class Argument {
                  SEXP r_self_effect_seq,
                  SEXP r_effect_seq,
                  SEXP r_self_ref_seq,
-                 SEXP r_ref_seq) {
+                 SEXP r_ref_seq,
+                 SEXP r_parent_fun_id,
+                 SEXP r_parent_formal_pos,
+                 SEXP r_parent_call_id,
+                 SEXP r_parent_arg_id) {
         SET_INTEGER_ELT(r_arg_id, index, arg_id_);
         SET_INTEGER_ELT(r_call_id, index, call_id_);
         SET_INTEGER_ELT(r_fun_id, index, fun_id_);
@@ -189,6 +208,10 @@ class Argument {
         SET_STRING_ELT(
             r_self_ref_seq, index, make_char(to_string(self_ref_seq_)));
         SET_STRING_ELT(r_ref_seq, index, make_char(to_string(ref_seq_)));
+        SET_INTEGER_ELT(r_parent_fun_id, index, parent_fun_id_);
+        SET_INTEGER_ELT(r_parent_formal_pos, index, parent_formal_pos_);
+        SET_INTEGER_ELT(r_parent_call_id, index, parent_call_id_);
+        SET_INTEGER_ELT(r_parent_arg_id, index, parent_arg_id_);
     }
 
   private:
@@ -221,6 +244,10 @@ class Argument {
     std::string effect_seq_;
     std::vector<std::pair<std::string, int>> self_ref_seq_;
     std::vector<std::pair<std::string, int>> ref_seq_;
+    int parent_fun_id_;
+    int parent_formal_pos_;
+    int parent_call_id_;
+    int parent_arg_id_;
 
     void add_event_(char event) {
         event_seq_.push_back(event);

@@ -297,7 +297,7 @@ int compute_companion_position(ArgumentTable& argument_table,
         if (promise_call_id == call_id) {
             Argument* promise_argument =
                 argument_table.lookup(frame_promise_id, call_id);
-            return promise_argument->get_position();
+            return promise_argument->get_formal_pos();
         }
     }
 
@@ -349,6 +349,59 @@ void compute_depth_and_companion(instrumentr_state_t state,
     argument->force(force_depth, companion_position);
 }
 
+void compute_parent_argument(instrumentr_state_t state,
+                             ArgumentTable& argument_table,
+                             instrumentr_promise_t promise) {
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    int promise_id = instrumentr_promise_get_id(promise);
+    int birth_time = instrumentr_promise_get_birth_time(promise);
+
+    for (int i = 1; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (!instrumentr_frame_is_promise(frame)) {
+            continue;
+        }
+
+        instrumentr_promise_t parent_promise =
+            instrumentr_frame_as_promise(frame);
+
+        if (instrumentr_promise_get_type(parent_promise) !=
+            INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+            continue;
+        }
+
+        int force_time =
+            instrumentr_promise_get_force_entry_time(parent_promise);
+
+        /* this means the promise was born while this promise was being
+           evaluated. this is not interesting. */
+        if (force_time < birth_time) {
+            continue;
+        }
+
+        int parent_promise_id = instrumentr_promise_get_id(parent_promise);
+
+        const std::vector<Argument*>& parent_arguments =
+            argument_table.lookup(parent_promise_id);
+
+        /* we take last argument because it refers to the closest call. */
+        Argument* parent_argument = parent_arguments.back();
+
+        const std::vector<Argument*>& arguments =
+            argument_table.lookup(promise_id);
+
+        for (Argument* argument: arguments) {
+            argument->set_parent(parent_argument);
+        }
+
+        return;
+    }
+}
+
 void promise_force_entry_callback(instrumentr_tracer_t tracer,
                                   instrumentr_callback_t callback,
                                   instrumentr_state_t state,
@@ -377,16 +430,20 @@ void promise_force_entry_callback(instrumentr_tracer_t tracer,
 
         argument->set_force_position(force_position);
 
-        call_data->force_argument(argument->get_position());
+        call_data->force_argument(argument->get_formal_pos());
 
         /* NOTE: first check escaped */
         if (call_data->has_exited()) {
             argument->escaped();
-        } else {
+        }
+
+        else {
             compute_depth_and_companion(
                 state, argument_table, call_data, argument);
         }
     }
+
+    compute_parent_argument(state, argument_table, promise);
 }
 
 void promise_force_exit_callback(instrumentr_tracer_t tracer,
@@ -595,7 +652,6 @@ void process_writes(instrumentr_state_t state,
         // if promise is forced after the environment it is writing to is born
         // then the write is a non-local side effect
         if (t1 > t2) {
-
             int env_id = instrumentr_environment_get_id(environment);
 
             effects_table.insert(type, varname, transitive, promise, env);
