@@ -11,7 +11,7 @@ class Argument {
              int call_env_id,
              const std::string& arg_name,
              int formal_pos,
-             int arg_count,
+             int dot_pos,
              int vararg,
              int missing,
              const std::string& arg_type,
@@ -24,9 +24,9 @@ class Argument {
         , call_env_id_(call_env_id)
         , arg_name_(arg_name)
         , formal_pos_(formal_pos)
+        , dot_pos_(dot_pos)
         , actual_pos_(NA_INTEGER)
         , force_pos_(NA_INTEGER)
-        , arg_count_(arg_count)
         , vararg_(vararg)
         , missing_(missing)
         , arg_type_(arg_type)
@@ -151,9 +151,9 @@ class Argument {
                  SEXP r_call_env_id,
                  SEXP r_arg_name,
                  SEXP r_formal_pos,
+                 SEXP r_dot_pos,
                  SEXP r_force_pos,
                  SEXP r_actual_pos,
-                 SEXP r_arg_count,
                  SEXP r_vararg,
                  SEXP r_missing,
                  SEXP r_arg_type,
@@ -184,9 +184,9 @@ class Argument {
         SET_INTEGER_ELT(r_call_env_id, index, call_env_id_);
         SET_STRING_ELT(r_arg_name, index, make_char(arg_name_));
         SET_INTEGER_ELT(r_formal_pos, index, formal_pos_);
+        SET_INTEGER_ELT(r_dot_pos, index, dot_pos_);
         SET_INTEGER_ELT(r_force_pos, index, force_pos_);
         SET_INTEGER_ELT(r_actual_pos, index, actual_pos_);
-        SET_INTEGER_ELT(r_arg_count, index, arg_count_);
         SET_LOGICAL_ELT(r_vararg, index, vararg_);
         SET_LOGICAL_ELT(r_missing, index, missing_);
         SET_STRING_ELT(r_arg_type, index, make_char(arg_type_));
@@ -221,9 +221,9 @@ class Argument {
     int call_env_id_;
     std::string arg_name_;
     int formal_pos_;
+    int dot_pos_;
     int force_pos_;
     int actual_pos_;
-    int arg_count_;
     int vararg_;
     int missing_;
     std::string arg_type_;

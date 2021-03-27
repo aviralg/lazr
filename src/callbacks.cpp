@@ -132,7 +132,7 @@ void process_actuals(ArgumentTable& argument_table, instrumentr_call_t call) {
             Argument* argument =
                 argument_table.lookup_permissive(promise_id, call_id);
 
-            if (argument != nullptr) {
+            if (argument != NULL) {
                 argument->set_actual_position(index);
             }
         }

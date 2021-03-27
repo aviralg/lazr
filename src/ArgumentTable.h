@@ -31,9 +31,12 @@ class ArgumentTable {
                 Call* call_data,
                 Function* function_data,
                 Environment* environment_data) {
+        int dot_pos = 0;
+
         if (instrumentr_value_is_dot(argument)) {
             insert_dot_(instrumentr_value_as_dot(argument),
                         formal_pos,
+                        dot_pos,
                         arg_name,
                         call_data,
                         function_data,
@@ -43,6 +46,7 @@ class ArgumentTable {
         else if (instrumentr_value_is_missing(argument)) {
             insert_missing_(instrumentr_value_as_missing(argument),
                             formal_pos,
+                            dot_pos,
                             arg_name,
                             call_data,
                             function_data,
@@ -52,6 +56,7 @@ class ArgumentTable {
         else if (instrumentr_value_is_promise(argument)) {
             insert_promise_(instrumentr_value_as_promise(argument),
                             formal_pos,
+                            dot_pos,
                             arg_name,
                             call_data,
                             function_data,
@@ -61,6 +66,7 @@ class ArgumentTable {
         else {
             insert_value_(argument,
                           formal_pos,
+                          dot_pos,
                           arg_name,
                           call_data,
                           function_data,
@@ -116,9 +122,9 @@ class ArgumentTable {
         SEXP r_call_env_id = PROTECT(allocVector(INTSXP, size_));
         SEXP r_arg_name = PROTECT(allocVector(STRSXP, size_));
         SEXP r_formal_pos = PROTECT(allocVector(INTSXP, size_));
+        SEXP r_dot_pos = PROTECT(allocVector(INTSXP, size_));
         SEXP r_force_pos = PROTECT(allocVector(INTSXP, size_));
         SEXP r_actual_pos = PROTECT(allocVector(INTSXP, size_));
-        SEXP r_arg_count = PROTECT(allocVector(INTSXP, size_));
         SEXP r_vararg = PROTECT(allocVector(LGLSXP, size_));
         SEXP r_missing = PROTECT(allocVector(LGLSXP, size_));
         SEXP r_arg_type = PROTECT(allocVector(STRSXP, size_));
@@ -157,9 +163,9 @@ class ArgumentTable {
                                   r_call_env_id,
                                   r_arg_name,
                                   r_formal_pos,
+                                  r_dot_pos,
                                   r_force_pos,
                                   r_actual_pos,
-                                  r_arg_count,
                                   r_vararg,
                                   r_missing,
                                   r_arg_type,
@@ -193,10 +199,10 @@ class ArgumentTable {
                                    r_fun_id,
                                    r_call_env_id,
                                    r_formal_pos,
+                                   r_dot_pos,
                                    r_force_pos,
                                    r_actual_pos,
                                    r_arg_name,
-                                   r_arg_count,
                                    r_vararg,
                                    r_missing,
                                    r_arg_type,
@@ -227,10 +233,10 @@ class ArgumentTable {
                                         "fun_id",
                                         "call_env_id",
                                         "formal_pos",
+                                        "dot_pos",
                                         "force_pos",
                                         "actual_pos",
                                         "arg_name",
-                                        "arg_count",
                                         "vararg",
                                         "missing",
                                         "arg_type",
@@ -269,37 +275,56 @@ class ArgumentTable {
 
     void insert_dot_(instrumentr_dot_t dot,
                      int formal_pos,
+                     int dot_pos,
                      const std::string& arg_name,
                      Call* call_data,
                      Function* function_data,
                      Environment* environment_data) {
         instrumentr_value_t ptr = instrumentr_dot_as_value(dot);
 
-        int preforced = 0;
-        int arg_count = 0;
+        int dot_pos2 = 0;
 
-        while (1) {
-            if (instrumentr_value_is_null(ptr)) {
-                break;
-            }
-
-            else if (instrumentr_value_is_dot(ptr)) {
+        while (!instrumentr_value_is_null(ptr)) {
+            if (instrumentr_value_is_dot(ptr)) {
                 instrumentr_dot_t dot_ptr = instrumentr_value_as_dot(ptr);
 
                 instrumentr_value_t value = instrumentr_dot_get_car(dot_ptr);
 
                 ptr = instrumentr_dot_get_cdr(dot_ptr);
 
-                ++arg_count;
+                std::string arg_name2 = LAZR_NA_STRING;
+
+                instrumentr_value_t tagval = instrumentr_dot_get_tag(dot_ptr);
+
+                if (instrumentr_value_is_symbol(tagval)) {
+                    instrumentr_symbol_t nameval =
+                        instrumentr_value_as_symbol(tagval);
+
+                    arg_name2 = instrumentr_char_get_element(
+                        instrumentr_symbol_get_element(nameval));
+                }
 
                 if (instrumentr_value_is_promise(value)) {
-                    preforced += instrumentr_promise_is_forced(
-                        instrumentr_value_as_promise(value));
+                    insert_promise_(instrumentr_value_as_promise(value),
+                                    formal_pos,
+                                    dot_pos2,
+                                    arg_name2,
+                                    call_data,
+                                    function_data,
+                                    environment_data);
                 }
 
                 else {
-                    ++preforced;
+                    insert_value_(value,
+                                  formal_pos,
+                                  dot_pos2,
+                                  arg_name2,
+                                  call_data,
+                                  function_data,
+                                  environment_data);
                 }
+
+                ++dot_pos2;
             }
 
             else if (instrumentr_value_is_pairlist(ptr)) {
@@ -311,48 +336,47 @@ class ArgumentTable {
 
                 ptr = instrumentr_pairlist_get_cdr(pairlist_ptr);
 
-                ++arg_count;
+                std::string arg_name2 = LAZR_NA_STRING;
+
+                instrumentr_value_t tagval =
+                    instrumentr_pairlist_get_tag(pairlist_ptr);
+
+                if (instrumentr_value_is_symbol(tagval)) {
+                    instrumentr_symbol_t nameval =
+                        instrumentr_value_as_symbol(tagval);
+
+                    arg_name2 = instrumentr_char_get_element(
+                        instrumentr_symbol_get_element(nameval));
+                }
 
                 if (instrumentr_value_is_promise(value)) {
-                    preforced += instrumentr_promise_is_forced(
-                        instrumentr_value_as_promise(value));
+                    insert_promise_(instrumentr_value_as_promise(value),
+                                    formal_pos,
+                                    dot_pos2,
+                                    arg_name2,
+                                    call_data,
+                                    function_data,
+                                    environment_data);
                 }
 
                 else {
-                    ++preforced;
+                    insert_value_(value,
+                                  formal_pos,
+                                  dot_pos2,
+                                  arg_name2,
+                                  call_data,
+                                  function_data,
+                                  environment_data);
                 }
+
+                ++dot_pos2;
             }
         }
-
-        int arg_id = instrumentr_dot_get_id(dot);
-        int call_id = call_data->get_id();
-        int fun_id = function_data->get_id();
-        int call_env_id = environment_data->get_id();
-        int vararg = 1;
-        int missing = 0;
-        std::string arg_type = "dot";
-        std::string expr_type = LAZR_NA_STRING;
-        std::string val_type = LAZR_NA_STRING;
-
-        Argument* argument_data = new Argument(arg_id,
-                                               call_id,
-                                               fun_id,
-                                               call_env_id,
-                                               arg_name,
-                                               formal_pos,
-                                               arg_count,
-                                               vararg,
-                                               missing,
-                                               arg_type,
-                                               expr_type,
-                                               val_type,
-                                               preforced);
-
-        insert_(argument_data);
     }
 
     void insert_missing_(instrumentr_missing_t missing_val,
                          int formal_pos,
+                         int dot_pos,
                          const std::string& arg_name,
                          Call* call_data,
                          Function* function_data,
@@ -361,7 +385,6 @@ class ArgumentTable {
         int call_id = call_data->get_id();
         int fun_id = function_data->get_id();
         int call_env_id = environment_data->get_id();
-        int arg_count = 0;
         int vararg = 0;
         int missing = 1;
         std::string arg_type = "missing";
@@ -375,7 +398,7 @@ class ArgumentTable {
                                                call_env_id,
                                                arg_name,
                                                formal_pos,
-                                               arg_count,
+                                               dot_pos,
                                                vararg,
                                                missing,
                                                arg_type,
@@ -388,6 +411,7 @@ class ArgumentTable {
 
     void insert_promise_(instrumentr_promise_t promise,
                          int formal_pos,
+                         int dot_pos,
                          const std::string& arg_name,
                          Call* call_data,
                          Function* function_data,
@@ -402,7 +426,6 @@ class ArgumentTable {
         int call_id = call_data->get_id();
         int fun_id = function_data->get_id();
         int call_env_id = environment_data->get_id();
-        int arg_count = 1;
         int vararg = 0;
         int missing = 0;
         std::string arg_type = "promise";
@@ -416,7 +439,7 @@ class ArgumentTable {
                                                call_env_id,
                                                arg_name,
                                                formal_pos,
-                                               arg_count,
+                                               dot_pos,
                                                vararg,
                                                missing,
                                                arg_type,
@@ -429,6 +452,7 @@ class ArgumentTable {
 
     void insert_value_(instrumentr_value_t value,
                        int formal_pos,
+                       int dot_pos,
                        const std::string& arg_name,
                        Call* call_data,
                        Function* function_data,
@@ -437,7 +461,6 @@ class ArgumentTable {
         int call_id = call_data->get_id();
         int fun_id = function_data->get_id();
         int call_env_id = environment_data->get_id();
-        int arg_count = 1;
         int vararg = 0;
         int missing = 0;
         std::string arg_type =
@@ -452,7 +475,7 @@ class ArgumentTable {
                                                call_env_id,
                                                arg_name,
                                                formal_pos,
-                                               arg_count,
+                                               dot_pos,
                                                vararg,
                                                missing,
                                                arg_type,
