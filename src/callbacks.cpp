@@ -150,7 +150,6 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
                                 instrumentr_application_t application,
                                 instrumentr_builtin_t builtin,
                                 instrumentr_call_t call) {
-
     std::string ref_type = instrumentr_builtin_get_name(builtin);
     int ref_call_id = instrumentr_call_get_id(call);
 
@@ -161,7 +160,8 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
         ref_type != "sys.calls" && ref_type != "sys.frames" &&
         ref_type != "sys.parents" && ref_type != "sys.function" &&
         ref_type != "parent.frame" && ref_type != "sys.on.exit" &&
-        ref_type != "as.environment" && ref_type != "pos.to.env") {
+        ref_type != "as.environment" && ref_type != "pos.to.env" &&
+        ref_type != "environment") {
         return;
     }
 
@@ -180,7 +180,7 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
     if (!instrumentr_call_has_result(call)) {
         return;
     }
-    
+
     /* NOTE: sys.status calls 3 of these functions so it is not added to the
      * list. */
     if (ref_type == "sys.parent" || ref_type == "parent.frame" ||
