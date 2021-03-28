@@ -183,7 +183,7 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
 
     /* NOTE: sys.status calls 3 of these functions so it is not added to the
      * list. */
-    if (ref_type == "sys.parent" || ref_type == "parent.frame" ||
+    if (ref_type == "sys.frame" || ref_type == "parent.frame" ||
         ref_type == "as.environment" || ref_type == "pos.to.env" ||
         ref_type == "environment") {
         instrumentr_value_t result = instrumentr_call_get_result(call);
