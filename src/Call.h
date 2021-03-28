@@ -15,6 +15,7 @@ class Call {
         , result_type_(LAZR_NA_STRING)
         , force_order_({})
         , exit_(false)
+        , esc_env_(0)
         , call_expr_(call_expr) {
     }
 
@@ -26,6 +27,10 @@ class Call {
         exit_ = true;
         result_type_ = result_type;
         successful_ = result_type != LAZR_NA_STRING;
+    }
+
+    void esc_env() {
+        ++esc_env_;
     }
 
     bool has_exited() const {
@@ -47,6 +52,7 @@ class Call {
                  SEXP r_successful,
                  SEXP r_result_type,
                  SEXP r_force_order,
+                 SEXP r_esc_env,
                  SEXP r_call_expr) {
         SET_INTEGER_ELT(r_call_id, position, call_id_);
         SET_INTEGER_ELT(r_fun_id, position, fun_id_);
@@ -55,6 +61,7 @@ class Call {
         SET_STRING_ELT(r_result_type, position, make_char(result_type_));
         SET_STRING_ELT(
             r_force_order, position, make_char(to_string(force_order_)));
+        SET_INTEGER_ELT(r_esc_env, position, esc_env_);
         SET_STRING_ELT(r_call_expr, position, make_char(call_expr_));
     }
 
@@ -66,6 +73,7 @@ class Call {
     std::string result_type_;
     std::vector<int> force_order_;
     bool exit_;
+    int esc_env_;
     std::string call_expr_;
 };
 

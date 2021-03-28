@@ -65,6 +65,7 @@ class CallTable {
         SEXP r_successful = PROTECT(allocVector(LGLSXP, size));
         SEXP r_result_type = PROTECT(allocVector(STRSXP, size));
         SEXP r_force_order = PROTECT(allocVector(STRSXP, size));
+        SEXP r_esc_env = PROTECT(allocVector(INTSXP, size));
         SEXP r_call_expr = PROTECT(allocVector(STRSXP, size));
 
         int index = 0;
@@ -79,6 +80,7 @@ class CallTable {
                           r_successful,
                           r_result_type,
                           r_force_order,
+                          r_esc_env,
                           r_call_expr);
         }
 
@@ -88,6 +90,7 @@ class CallTable {
                                    r_successful,
                                    r_result_type,
                                    r_force_order,
+                                   r_esc_env,
                                    r_call_expr});
 
         std::vector<std::string> names({"call_id",
@@ -96,11 +99,12 @@ class CallTable {
                                         "successful",
                                         "result_type",
                                         "force_order",
+                                        "esc_env",
                                         "call_expr"});
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(7);
+        UNPROTECT(8);
 
         return df;
     }

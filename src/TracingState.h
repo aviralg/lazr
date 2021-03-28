@@ -7,7 +7,8 @@
 #include "ArgumentTable.h"
 #include "FunctionTable.h"
 #include "EffectsTable.h"
-#include "ReflectionTable.h"
+#include "ArgumentReflectionTable.h"
+#include "CallReflectionTable.h"
 #include <instrumentr/instrumentr.h>
 
 class TracingState {
@@ -55,12 +56,20 @@ class TracingState {
         return effects_table_;
     }
 
-    ReflectionTable& get_reflection_table() {
-        return reflection_table_;
+    ArgumentReflectionTable& get_arg_ref_tab() {
+        return arg_ref_tab_;
     }
 
-    const ReflectionTable& get_reflection_table() const {
-        return reflection_table_;
+    const ArgumentReflectionTable& get_arg_ref_tab() const {
+        return arg_ref_tab_;
+    }
+
+    CallReflectionTable& get_call_ref_tab() {
+        return call_ref_tab_;
+    }
+
+    const CallReflectionTable& get_call_ref_tab() const {
+        return call_ref_tab_;
     }
 
     static void initialize(instrumentr_state_t state);
@@ -75,7 +84,8 @@ class TracingState {
     ArgumentTable argument_table_;
     FunctionTable function_table_;
     EffectsTable effects_table_;
-    ReflectionTable reflection_table_;
+    ArgumentReflectionTable arg_ref_tab_;
+    CallReflectionTable call_ref_tab_;
 };
 
 #endif /* LAZR_TRACING_STATE_H */

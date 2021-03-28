@@ -13,35 +13,13 @@ std::string get_sexp_type(SEXP r_value) {
     }
 }
 
-void builtin_call_entry_callback(instrumentr_tracer_t tracer,
-                                 instrumentr_callback_t callback,
-                                 instrumentr_state_t state,
-                                 instrumentr_application_t application,
-                                 instrumentr_builtin_t builtin,
-                                 instrumentr_call_t call) {
-    std::string name = instrumentr_builtin_get_name(builtin);
-
-    /* NOTE: sys.status calls 3 of these functions so it is not added to the
-     * list  */
-    if (name != "sys.parent" && name != "sys.call" && name != "sys.frame" &&
-        name != "sys.nframe" && name != "sys.calls" && name != "sys.frames" &&
-        name != "sys.parents" && name != "sys.function" &&
-        name != "parent.frame" && name != "sys.on.exit" &&
-        name != "as.environment" && name != "pos.to.env") {
-        return;
-    }
-
-    TracingState& tracing_state = TracingState::lookup(state);
-
-    ArgumentTable& arg_table = tracing_state.get_argument_table();
-
-    ReflectionTable& ref_table = tracing_state.get_reflection_table();
-
-    instrumentr_call_stack_t call_stack =
-        instrumentr_state_get_call_stack(state);
-
+void mark_promises(int ref_call_id,
+                   const std::string& ref_type,
+                   ArgumentTable& arg_tab,
+                   ArgumentReflectionTable& ref_tab,
+                   instrumentr_call_stack_t call_stack) {
     bool transitive = false;
-    for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+    for (int i = 1; i < instrumentr_call_stack_get_size(call_stack); ++i) {
         instrumentr_frame_t frame =
             instrumentr_call_stack_peek_frame(call_stack, i);
 
@@ -61,15 +39,175 @@ void builtin_call_entry_callback(instrumentr_tracer_t tracer,
 
         int promise_id = instrumentr_promise_get_id(promise);
 
-        const std::vector<Argument*>& args = arg_table.lookup(promise_id);
+        const std::vector<Argument*>& args = arg_tab.lookup(promise_id);
 
         for (auto& arg: args) {
-            arg->reflection(name, transitive);
+            arg->reflection(ref_type, transitive);
+
+            int arg_id = arg->get_id();
+            int fun_id = arg->get_fun_id();
+            int call_id = arg->get_call_id();
+            int formal_pos = arg->get_formal_pos();
+            ref_tab.insert(ref_call_id,
+                           ref_type,
+                           transitive,
+                           fun_id,
+                           call_id,
+                           arg_id,
+                           formal_pos);
         }
 
-        ref_table.insert(name, transitive, promise);
-
         transitive = true;
+    }
+}
+
+void mark_escaped_environment_call(int ref_call_id,
+                                   const std::string& ref_type,
+                                   ArgumentTable& arg_tab,
+                                   CallTable& call_tab,
+                                   CallReflectionTable& call_ref_tab,
+                                   instrumentr_call_stack_t call_stack,
+                                   instrumentr_environment_t environment) {
+    int depth = 1;
+    int source_fun_id = NA_INTEGER;
+    int source_call_id = NA_INTEGER;
+    int sink_fun_id = NA_INTEGER;
+    int sink_call_id = NA_INTEGER;
+    int sink_arg_id = NA_INTEGER;
+    int sink_formal_pos = NA_INTEGER;
+
+    for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (sink_fun_id == NA_INTEGER && instrumentr_frame_is_promise(frame)) {
+            instrumentr_promise_t promise = instrumentr_frame_as_promise(frame);
+
+            if (instrumentr_promise_get_type(promise) !=
+                INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+                continue;
+            }
+
+            int promise_id = instrumentr_promise_get_id(promise);
+
+            /* the last argument refers to the topmost call id */
+            Argument* arg = arg_tab.lookup(promise_id).back();
+
+            sink_arg_id = arg->get_id();
+            sink_fun_id = arg->get_fun_id();
+            sink_call_id = arg->get_call_id();
+            sink_formal_pos = arg->get_formal_pos();
+        }
+
+        if (instrumentr_frame_is_call(frame)) {
+            instrumentr_call_t call = instrumentr_frame_as_call(frame);
+
+            instrumentr_value_t function = instrumentr_call_get_function(call);
+
+            if (!instrumentr_value_is_closure(function)) {
+                continue;
+            }
+
+            instrumentr_closure_t closure =
+                instrumentr_value_as_closure(function);
+
+            if (sink_fun_id == NA_INTEGER) {
+                sink_call_id = instrumentr_call_get_id(call);
+                sink_fun_id = instrumentr_closure_get_id(closure);
+            }
+
+            instrumentr_environment_t call_env =
+                instrumentr_call_get_environment(call);
+
+            if (environment == NULL || call_env == environment) {
+                source_call_id = instrumentr_call_get_id(call);
+                source_fun_id = instrumentr_closure_get_id(closure);
+
+                call_ref_tab.insert(ref_call_id,
+                                    ref_type,
+                                    source_fun_id,
+                                    source_call_id,
+                                    sink_fun_id,
+                                    sink_call_id,
+                                    sink_arg_id,
+                                    sink_formal_pos,
+                                    depth);
+
+                Call* call_data = call_tab.lookup(source_call_id);
+                call_data->esc_env();
+
+                return;
+            }
+
+            ++depth;
+        }
+    }
+}
+
+void builtin_call_exit_callback(instrumentr_tracer_t tracer,
+                                instrumentr_callback_t callback,
+                                instrumentr_state_t state,
+                                instrumentr_application_t application,
+                                instrumentr_builtin_t builtin,
+                                instrumentr_call_t call) {
+
+    std::string ref_type = instrumentr_builtin_get_name(builtin);
+    int ref_call_id = instrumentr_call_get_id(call);
+
+    /* NOTE: sys.status calls 3 of these functions so it is not added to the
+     * list. */
+    if (ref_type != "sys.parent" && ref_type != "sys.call" &&
+        ref_type != "sys.frame" && ref_type != "sys.nframe" &&
+        ref_type != "sys.calls" && ref_type != "sys.frames" &&
+        ref_type != "sys.parents" && ref_type != "sys.function" &&
+        ref_type != "parent.frame" && ref_type != "sys.on.exit" &&
+        ref_type != "as.environment" && ref_type != "pos.to.env") {
+        return;
+    }
+
+    TracingState& tracing_state = TracingState::lookup(state);
+
+    ArgumentTable& arg_tab = tracing_state.get_argument_table();
+    CallTable& call_tab = tracing_state.get_call_table();
+    ArgumentReflectionTable& arg_ref_tab = tracing_state.get_arg_ref_tab();
+    CallReflectionTable& call_ref_tab = tracing_state.get_call_ref_tab();
+
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    mark_promises(ref_call_id, ref_type, arg_tab, arg_ref_tab, call_stack);
+
+    if (!instrumentr_call_has_result(call)) {
+        return;
+    }
+    
+    /* NOTE: sys.status calls 3 of these functions so it is not added to the
+     * list. */
+    if (ref_type == "sys.parent" || ref_type == "parent.frame" ||
+        ref_type == "as.environment" || ref_type == "pos.to.env" ||
+        ref_type == "environment") {
+        instrumentr_value_t result = instrumentr_call_get_result(call);
+        instrumentr_environment_t environment =
+            instrumentr_value_as_environment(result);
+
+        mark_escaped_environment_call(ref_call_id,
+                                      ref_type,
+                                      arg_tab,
+                                      call_tab,
+                                      call_ref_tab,
+                                      call_stack,
+                                      environment);
+    }
+
+    /* this means that environments of all functions on the stack escape */
+    else if (ref_type == "sys.frames") {
+        mark_escaped_environment_call(ref_call_id,
+                                      ref_type,
+                                      arg_tab,
+                                      call_tab,
+                                      call_ref_tab,
+                                      call_stack,
+                                      NULL);
     }
 }
 
@@ -203,7 +341,9 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
 
     std::string result_type = LAZR_NA_STRING;
     if (has_result) {
-        result_type = get_type_as_string(instrumentr_call_get_result(call));
+        instrumentr_value_t value = instrumentr_call_get_result(call);
+        instrumentr_value_type_t val_type = instrumentr_value_get_type(value);
+        result_type = instrumentr_value_type_get_name(val_type);
     }
 
     Call* call_data = call_table.lookup(call_id);
