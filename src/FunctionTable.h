@@ -8,6 +8,8 @@
 
 class FunctionTable {
   public:
+    const std::string QUALIFIED_NAME_SEPARATOR = "*$#$*";
+
     FunctionTable() {
     }
 
@@ -153,7 +155,7 @@ class FunctionTable {
             if (parent_name == LAZR_NA_STRING) {
                 fun_name = LAZR_NA_STRING;
             } else {
-                fun_name = parent_name + "::" + fun_name;
+                fun_name = parent_name + QUALIFIED_NAME_SEPARATOR + fun_name;
             }
         }
 
@@ -165,7 +167,7 @@ class FunctionTable {
             if (env_data->has_name() && (env_data->get_type() == "namespace" ||
                                          env_data->get_type() == "package")) {
                 std::string pack_name = env_data->get_name();
-                fun_name = pack_name + "::" + fun_name;
+                fun_name = pack_name + QUALIFIED_NAME_SEPARATOR + fun_name;
             } else {
                 fun_name = LAZR_NA_STRING;
             }
