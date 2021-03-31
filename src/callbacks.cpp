@@ -187,6 +187,11 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
         ref_type == "as.environment" || ref_type == "pos.to.env" ||
         ref_type == "environment") {
         instrumentr_value_t result = instrumentr_call_get_result(call);
+
+        if (!instrumentr_value_is_environment(result)) {
+            return;
+        }
+
         instrumentr_environment_t environment =
             instrumentr_value_as_environment(result);
 
@@ -352,16 +357,19 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
 }
 
 void compute_meta_depth(instrumentr_state_t state,
+                        const std::string& meta_type,
+                        MetaprogrammingTable& meta_table,
                         Argument* argument,
                         int call_id) {
     int meta_depth = 0;
-    bool found = false;
+    int sink_fun_id = NA_INTEGER;
+    int sink_call_id = NA_INTEGER;
 
     instrumentr_call_stack_t call_stack =
         instrumentr_state_get_call_stack(state);
 
     /* topmost frame is substitute call */
-    for (int i = 1; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+    for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
         instrumentr_frame_t frame =
             instrumentr_call_stack_peek_frame(call_stack, i);
 
@@ -371,15 +379,41 @@ void compute_meta_depth(instrumentr_state_t state,
 
         instrumentr_call_t call = instrumentr_frame_as_call(frame);
 
+        instrumentr_value_t function = instrumentr_call_get_function(call);
+
+        if (!instrumentr_value_is_closure(function)) {
+            continue;
+        }
+
         int current_call_id = instrumentr_call_get_id(call);
 
-        if (current_call_id == call_id) {
-            ++meta_depth;
-            found = true;
+        if (sink_fun_id == NA_INTEGER) {
+            sink_call_id = current_call_id;
+            sink_fun_id = instrumentr_value_get_id(function);
         }
-    }
 
-    argument->metaprogram(found ? meta_depth : NA_INTEGER);
+        if (current_call_id == call_id) {
+            meta_table.insert(meta_type,
+                              argument->get_fun_id(),
+                              argument->get_call_id(),
+                              argument->get_id(),
+                              argument->get_formal_pos(),
+                              sink_fun_id,
+                              sink_call_id,
+                              meta_depth);
+
+            /* NOTE: expression metaprogramming happens even when substitute is
+               called. calling this for substitute will double count
+               metaprogramming. */
+            if (meta_type == "expression") {
+                argument->metaprogram(meta_depth);
+            }
+
+            break;
+        }
+
+        ++meta_depth;
+    }
 }
 
 void promise_substitute_callback(instrumentr_tracer_t tracer,
@@ -395,6 +429,8 @@ void promise_substitute_callback(instrumentr_tracer_t tracer,
     TracingState& tracing_state = TracingState::lookup(state);
     CallTable& call_table = tracing_state.get_call_table();
     ArgumentTable& argument_table = tracing_state.get_argument_table();
+    MetaprogrammingTable& meta_table =
+        tracing_state.get_metaprogramming_table();
 
     int promise_id = instrumentr_promise_get_id(promise);
 
@@ -412,7 +448,43 @@ void promise_substitute_callback(instrumentr_tracer_t tracer,
             argument->escaped();
         }
 
-        compute_meta_depth(state, argument, call_id);
+        compute_meta_depth(state, "substitute", meta_table, argument, call_id);
+    }
+}
+
+void promise_expression_lookup_callback(instrumentr_tracer_t tracer,
+                                        instrumentr_callback_t callback,
+                                        instrumentr_state_t state,
+                                        instrumentr_application_t application,
+                                        instrumentr_promise_t promise) {
+    if (instrumentr_promise_get_type(promise) !=
+        INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+        return;
+    }
+
+    TracingState& tracing_state = TracingState::lookup(state);
+    CallTable& call_table = tracing_state.get_call_table();
+    ArgumentTable& argument_table = tracing_state.get_argument_table();
+    MetaprogrammingTable& meta_table =
+        tracing_state.get_metaprogramming_table();
+
+    int promise_id = instrumentr_promise_get_id(promise);
+
+    const std::vector<Argument*>& arguments = argument_table.lookup(promise_id);
+    std::vector<instrumentr_call_t> calls =
+        instrumentr_promise_get_calls(promise);
+
+    for (Argument* argument: arguments) {
+        int call_id = argument->get_call_id();
+
+        Call* call_data = call_table.lookup(call_id);
+
+        /* NOTE: first check escaped then lookup */
+        if (call_data->has_exited()) {
+            argument->escaped();
+        }
+
+        compute_meta_depth(state, "expression", meta_table, argument, call_id);
     }
 }
 

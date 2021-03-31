@@ -6,6 +6,7 @@
 #include "EnvironmentTable.h"
 #include "ArgumentTable.h"
 #include "FunctionTable.h"
+#include "MetaprogrammingTable.h"
 #include "EffectsTable.h"
 #include "ArgumentReflectionTable.h"
 #include "CallReflectionTable.h"
@@ -48,6 +49,14 @@ class TracingState {
         return function_table_;
     }
 
+    MetaprogrammingTable& get_metaprogramming_table() {
+        return metaprogramming_table_;
+    }
+
+    const MetaprogrammingTable& get_metaprogramming_table() const {
+        return metaprogramming_table_;
+    }
+
     EffectsTable& get_effects_table() {
         return effects_table_;
     }
@@ -83,6 +92,7 @@ class TracingState {
     EnvironmentTable environment_table_;
     ArgumentTable argument_table_;
     FunctionTable function_table_;
+    MetaprogrammingTable metaprogramming_table_;
     EffectsTable effects_table_;
     ArgumentReflectionTable arg_ref_tab_;
     CallReflectionTable call_ref_tab_;
