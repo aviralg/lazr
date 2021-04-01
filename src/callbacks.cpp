@@ -325,6 +325,11 @@ void closure_call_entry_callback(instrumentr_tracer_t tracer,
         argument_table, call, closure, call_data, function_data, call_env_data);
 
     process_actuals(argument_table, call);
+
+    /* handle backtrace */
+    Backtrace& backtrace = tracing_state.get_backtrace();
+
+    backtrace.push(call);
 }
 
 void closure_call_exit_callback(instrumentr_tracer_t tracer,
@@ -354,6 +359,11 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
     Call* call_data = call_table.lookup(call_id);
 
     call_data->exit(result_type);
+
+    /* handle backtrace */
+    Backtrace& backtrace = tracing_state.get_backtrace();
+
+    backtrace.pop();
 }
 
 void compute_meta_depth(instrumentr_state_t state,
@@ -751,13 +761,28 @@ void process_reads(instrumentr_state_t state,
                    const std::string& varname,
                    ArgumentTable& argument_table,
                    EnvironmentTable& environment_table,
-                   EffectsTable& effects_table) {
+                   EffectsTable& effects_table,
+                   Backtrace& backtrace) {
+    /* don't process *tmp* as it is an implementation variable */
+    if (varname == "*tmp*") {
+        return;
+    }
+
     Environment* env = environment_table.insert(environment);
+    int t2 = instrumentr_environment_get_last_write_time(environment);
+    int env_birth_time = instrumentr_environment_get_birth_time(environment);
+
+    int env_id = instrumentr_environment_get_id(environment);
 
     instrumentr_call_stack_t call_stack =
         instrumentr_state_get_call_stack(state);
 
     bool transitive = false;
+
+    int source_fun_id = NA_INTEGER;
+    int source_call_id = NA_INTEGER;
+    int source_arg_id = NA_INTEGER;
+    int source_formal_pos = NA_INTEGER;
 
     for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
         instrumentr_frame_t frame =
@@ -776,6 +801,55 @@ void process_reads(instrumentr_state_t state,
 
         int promise_id = instrumentr_promise_get_id(promise);
 
+        int t1 = instrumentr_promise_get_birth_time(promise);
+        int t3 = instrumentr_promise_get_force_entry_time(promise);
+
+        /* if environment is born inside this promise's evaluation, then
+           we stop the analysis here because the effect is contained inside
+           this promise. */
+        if (env_birth_time > t3) {
+            return;
+        }
+
+        // This means the environment has been modified after the promise is
+        // created but before it is forced and while forcing, this promise is
+        // reading from the environment. Since this read can potentially be from
+        // the modified location, we should mark it as non local and make the
+        // argument lazy.
+        if (!transitive && (t2 > t1 && t2 < t3)) {
+            const std::vector<Argument*>& args =
+                argument_table.lookup(promise_id);
+
+            for (auto& arg: args) {
+                arg->side_effect(type, transitive);
+            }
+
+            Argument* arg = args.back();
+
+            /* NOTE: source_ids are NA because effect originates from this
+             * promise. */
+
+            effects_table.insert(type,
+                                 varname,
+                                 transitive,
+                                 env_id,
+                                 NA_INTEGER,
+                                 NA_INTEGER,
+                                 NA_INTEGER,
+                                 NA_INTEGER,
+                                 arg->get_fun_id(),
+                                 arg->get_call_id(),
+                                 promise_id,
+                                 arg->get_formal_pos(),
+                                 backtrace.to_string());
+
+            source_fun_id = arg->get_fun_id();
+            source_call_id = arg->get_call_id();
+            source_arg_id = promise_id;
+            source_formal_pos = arg->get_formal_pos();
+            transitive = true;
+        }
+
         /* if transitive is set, then the promise directly responsible for the
          * effect has already been found and handled. All other promises on the
          * stack are transitively responsible for forcing it and have to be made
@@ -788,36 +862,26 @@ void process_reads(instrumentr_state_t state,
                 arg->side_effect(type, transitive);
             }
 
+            // Take the most recent argument
+            Argument* arg = args.back();
+
+            effects_table.insert(type,
+                                 varname,
+                                 transitive,
+                                 env_id,
+                                 source_fun_id,
+                                 source_call_id,
+                                 source_arg_id,
+                                 source_formal_pos,
+                                 arg->get_fun_id(),
+                                 arg->get_call_id(),
+                                 promise_id,
+                                 arg->get_formal_pos(),
+                                 LAZR_NA_STRING);
+
             /* loop back to next promise on the stack so it can be made
              * responsible for transitive read. */
             continue;
-        }
-
-        int t1 = instrumentr_promise_get_birth_time(promise);
-        int t2 = instrumentr_environment_get_last_write_time(environment);
-        int t3 = instrumentr_promise_get_force_entry_time(promise);
-
-        // This means the environment has been modified after the promise is
-        // created but before it is forced and while forcing, this promise is
-        // reading from the environment. Since this read can potentially be from
-        // the modified location, we should mark it as non local and make the
-        // argument lazy.
-        if (t2 > t1 && t2 < t3) {
-            int env_id = instrumentr_environment_get_id(environment);
-
-            effects_table.insert(type, varname, transitive, promise, env);
-
-            const std::vector<Argument*>& args =
-                argument_table.lookup(promise_id);
-
-            for (auto& arg: args) {
-                arg->side_effect(type, transitive);
-            }
-
-            /* TODO: should it be set iff there is a write by the topmost
-             * promise.
-             */
-            transitive = true;
         }
     }
 }
@@ -833,12 +897,19 @@ void variable_lookup(instrumentr_tracer_t tracer,
     ArgumentTable& arg_table = tracing_state.get_argument_table();
     EffectsTable& effects_table = tracing_state.get_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
+    Backtrace& backtrace = tracing_state.get_backtrace();
 
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_reads(
-        state, environment, 'L', varname, arg_table, env_table, effects_table);
+    process_reads(state,
+                  environment,
+                  'L',
+                  varname,
+                  arg_table,
+                  env_table,
+                  effects_table,
+                  backtrace);
 }
 
 void function_context_lookup(instrumentr_tracer_t tracer,
@@ -884,13 +955,27 @@ void process_writes(instrumentr_state_t state,
                     const std::string& varname,
                     ArgumentTable& argument_table,
                     EnvironmentTable& environment_table,
-                    EffectsTable& effects_table) {
+                    EffectsTable& effects_table,
+                    Backtrace& backtrace) {
+    /* don't process *tmp* as it is an implementation variable */
+    if (varname == "*tmp*") {
+        return;
+    }
+
     Environment* env = environment_table.insert(environment);
+
+    int t2 = instrumentr_environment_get_birth_time(environment);
+    int env_id = instrumentr_environment_get_id(environment);
 
     instrumentr_call_stack_t call_stack =
         instrumentr_state_get_call_stack(state);
 
     bool transitive = false;
+
+    int source_fun_id = NA_INTEGER;
+    int source_call_id = NA_INTEGER;
+    int source_arg_id = NA_INTEGER;
+    int source_formal_pos = NA_INTEGER;
 
     for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
         instrumentr_frame_t frame =
@@ -908,11 +993,54 @@ void process_writes(instrumentr_state_t state,
         }
 
         int promise_id = instrumentr_promise_get_id(promise);
+        int t1 = instrumentr_promise_get_force_entry_time(promise);
 
-        /* if transitive is set, then the promise directly responsible for the
-         * effect has already been found and handled. All other promises on the
-         * stack are transitively responsible for forcing it and have to be made
-         * lazy. */
+        /* if environment is born inside the the currently forced promise, then
+         * effect is contained inside the promise and we can exit */
+        if (t2 > t1) {
+            return;
+        }
+
+        // if promise is forced after the environment it is writing to is
+        // born then the write is a non-local side effect
+        if (!transitive) {
+            const std::vector<Argument*>& args =
+                argument_table.lookup(promise_id);
+
+            for (auto& arg: args) {
+                arg->side_effect(type, transitive);
+            }
+
+            Argument* arg = args.back();
+
+            /* NOTE: source_ids are NA because effect originates from this
+             * promise. */
+
+            effects_table.insert(type,
+                                 varname,
+                                 transitive,
+                                 env_id,
+                                 NA_INTEGER,
+                                 NA_INTEGER,
+                                 NA_INTEGER,
+                                 NA_INTEGER,
+                                 arg->get_fun_id(),
+                                 arg->get_call_id(),
+                                 promise_id,
+                                 arg->get_formal_pos(),
+                                 backtrace.to_string());
+
+            source_fun_id = arg->get_fun_id();
+            source_call_id = arg->get_call_id();
+            source_arg_id = promise_id;
+            source_formal_pos = arg->get_formal_pos();
+            transitive = true;
+        }
+
+        /* if transitive is set, then the promise directly responsible for
+         * the effect has already been found and handled. All other promises
+         * on the stack satisfying this condition are transitively
+         * responsible for forcing it and have to be made lazy. */
         if (transitive) {
             const std::vector<Argument*>& args =
                 argument_table.lookup(promise_id);
@@ -921,32 +1049,26 @@ void process_writes(instrumentr_state_t state,
                 arg->side_effect(type, transitive);
             }
 
+            // Take the most recent argument
+            Argument* arg = args.back();
+
+            effects_table.insert(type,
+                                 varname,
+                                 transitive,
+                                 env_id,
+                                 source_fun_id,
+                                 source_call_id,
+                                 source_arg_id,
+                                 source_formal_pos,
+                                 arg->get_fun_id(),
+                                 arg->get_call_id(),
+                                 promise_id,
+                                 arg->get_formal_pos(),
+                                 LAZR_NA_STRING);
+
             /* loop back to next promise on the stack so it can be made
              * responsible for transitive write. */
             continue;
-        }
-
-        int t1 = instrumentr_promise_get_force_entry_time(promise);
-        int t2 = instrumentr_environment_get_birth_time(environment);
-
-        // if promise is forced after the environment it is writing to is born
-        // then the write is a non-local side effect
-        if (t1 > t2) {
-            int env_id = instrumentr_environment_get_id(environment);
-
-            effects_table.insert(type, varname, transitive, promise, env);
-
-            const std::vector<Argument*>& args =
-                argument_table.lookup(promise_id);
-
-            for (auto& arg: args) {
-                arg->side_effect(type, transitive);
-            }
-
-            /* TODO: should it be set iff there is a write by the topmost
-             * promise.
-             */
-            transitive = true;
         }
     }
 }
@@ -962,12 +1084,19 @@ void variable_assign(instrumentr_tracer_t tracer,
     ArgumentTable& arg_table = tracing_state.get_argument_table();
     EffectsTable& effects_table = tracing_state.get_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
+    Backtrace& backtrace = tracing_state.get_backtrace();
 
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_writes(
-        state, environment, 'A', varname, arg_table, env_table, effects_table);
+    process_writes(state,
+                   environment,
+                   'A',
+                   varname,
+                   arg_table,
+                   env_table,
+                   effects_table,
+                   backtrace);
 }
 
 void variable_define(instrumentr_tracer_t tracer,
@@ -981,12 +1110,19 @@ void variable_define(instrumentr_tracer_t tracer,
     ArgumentTable& arg_table = tracing_state.get_argument_table();
     EffectsTable& effects_table = tracing_state.get_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
+    Backtrace& backtrace = tracing_state.get_backtrace();
 
     instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
     std::string varname = instrumentr_char_get_element(charval);
 
-    process_writes(
-        state, environment, 'D', varname, arg_table, env_table, effects_table);
+    process_writes(state,
+                   environment,
+                   'D',
+                   varname,
+                   arg_table,
+                   env_table,
+                   effects_table,
+                   backtrace);
 }
 
 void variable_remove(instrumentr_tracer_t tracer,
@@ -999,11 +1135,19 @@ void variable_remove(instrumentr_tracer_t tracer,
     ArgumentTable& arg_table = tracing_state.get_argument_table();
     EffectsTable& effects_table = tracing_state.get_effects_table();
     EnvironmentTable& env_table = tracing_state.get_environment_table();
+    Backtrace& backtrace = tracing_state.get_backtrace();
 
-    std::string varname = LAZR_NA_STRING;
+    instrumentr_char_t charval = instrumentr_symbol_get_element(symbol);
+    std::string varname = instrumentr_char_get_element(charval);
 
-    process_writes(
-        state, environment, 'R', varname, arg_table, env_table, effects_table);
+    process_writes(state,
+                   environment,
+                   'R',
+                   varname,
+                   arg_table,
+                   env_table,
+                   effects_table,
+                   backtrace);
 }
 
 void value_finalize(instrumentr_tracer_t tracer,

@@ -10,6 +10,7 @@
 #include "EffectsTable.h"
 #include "ArgumentReflectionTable.h"
 #include "CallReflectionTable.h"
+#include "Backtrace.h"
 #include <instrumentr/instrumentr.h>
 
 class TracingState {
@@ -81,6 +82,14 @@ class TracingState {
         return call_ref_tab_;
     }
 
+    Backtrace& get_backtrace() {
+        return backtrace_;
+    }
+
+    const Backtrace& get_backtrace() const {
+        return backtrace_;
+    }
+
     static void initialize(instrumentr_state_t state);
 
     static void finalize(instrumentr_state_t state);
@@ -96,6 +105,7 @@ class TracingState {
     EffectsTable effects_table_;
     ArgumentReflectionTable arg_ref_tab_;
     CallReflectionTable call_ref_tab_;
+    Backtrace backtrace_;
 };
 
 #endif /* LAZR_TRACING_STATE_H */
