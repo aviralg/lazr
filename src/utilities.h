@@ -30,4 +30,6 @@ std::string to_string(const std::vector<std::pair<std::string, int>>& seq);
 
 std::string to_string(const std::vector<int>& seq);
 
+SEXP r_lazr_run_length_encoding(SEXP r_input);
+
 #endif /* LAZR_UTILITIES_H */

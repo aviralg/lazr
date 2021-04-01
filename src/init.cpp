@@ -4,6 +4,7 @@
 #include <stdlib.h> // for NULL
 #include "tracer.h"
 #include <instrumentr/instrumentr.h>
+#include "utilities.h"
 
 INSTRUMENTR_DEFINE_API()
 
@@ -11,6 +12,7 @@ extern "C" {
 
 static const R_CallMethodDef callMethods[] = {
     {"lazr_tracer_create", (DL_FUNC) &r_lazr_tracer_create, 0},
+    {"lazr_run_length_encoding", (DL_FUNC) &r_lazr_run_length_encoding, 1},
     {NULL, NULL, 0}};
 
 void R_init_lazr(DllInfo* dll) {
