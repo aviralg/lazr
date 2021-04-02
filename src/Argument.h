@@ -135,6 +135,10 @@ class Argument {
         add_event_('E');
     }
 
+    bool has_escaped() const {
+        return escaped_;
+    }
+
     void side_effect(const char type, bool transitive) {
         add_effect_(effect_seq_, type);
         if (!transitive) {

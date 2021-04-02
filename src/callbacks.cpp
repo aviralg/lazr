@@ -581,7 +581,7 @@ void compute_depth_and_companion(instrumentr_state_t state,
                 compute_companion_position(argument_table, call_id, frame);
         }
 
-        if (instrumentr_frame_is_call(frame)) {
+        if (!argument->has_escaped() && instrumentr_frame_is_call(frame)) {
             instrumentr_call_t frame_call = instrumentr_frame_as_call(frame);
 
             int frame_call_id = instrumentr_call_get_id(frame_call);
@@ -599,7 +599,8 @@ void compute_depth_and_companion(instrumentr_state_t state,
         }
     }
 
-    argument->force(force_depth, companion_position);
+    argument->force(argument->has_escaped() ? NA_INTEGER : force_depth,
+                    companion_position);
 }
 
 void compute_parent_argument(instrumentr_state_t state,
@@ -690,10 +691,7 @@ void promise_force_entry_callback(instrumentr_tracer_t tracer,
             argument->escaped();
         }
 
-        else {
-            compute_depth_and_companion(
-                state, argument_table, call_data, argument);
-        }
+        compute_depth_and_companion(state, argument_table, call_data, argument);
     }
 
     compute_parent_argument(state, argument_table, promise);
