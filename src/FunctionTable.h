@@ -67,6 +67,7 @@ class FunctionTable {
 
         SEXP r_fun_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_fun_name = PROTECT(allocVector(STRSXP, size));
+        SEXP r_anonymous = PROTECT(allocVector(LGLSXP, size));
         SEXP r_qual_name = PROTECT(allocVector(STRSXP, size));
         SEXP r_parent_fun_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_fun_env_id = PROTECT(allocVector(INTSXP, size));
@@ -83,6 +84,7 @@ class FunctionTable {
             function->to_sexp(index,
                               r_fun_id,
                               r_fun_name,
+                              r_anonymous,
                               r_qual_name,
                               r_parent_fun_id,
                               r_fun_env_id,
@@ -93,6 +95,7 @@ class FunctionTable {
 
         std::vector<SEXP> columns({r_fun_id,
                                    r_fun_name,
+                                   r_anonymous,
                                    r_qual_name,
                                    r_parent_fun_id,
                                    r_fun_env_id,
@@ -102,6 +105,7 @@ class FunctionTable {
 
         std::vector<std::string> names({"fun_id",
                                         "fun_name",
+                                        "anonymous",
                                         "qual_name",
                                         "parent_fun_id",
                                         "fun_env_id",
@@ -111,7 +115,7 @@ class FunctionTable {
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(8);
+        UNPROTECT(9);
 
         return df;
     }
@@ -129,20 +133,21 @@ class FunctionTable {
 
     std::string infer_qualified_name_helper_(Function* fun,
                                              EnvironmentTable& env_tab) {
-        /* if function does not have its own name, no use computing
-         * qualified parent's name. */
-        if (!fun->has_name()) {
-            fun->set_qualified_name(LAZR_NA_STRING);
-            return LAZR_NA_STRING;
-        }
-
         /* if function already has a qualified name, then don't compute it
          * again  */
         if (fun->has_qualified_name()) {
             return fun->get_qualified_name();
         }
 
-        std::string fun_name = fun->get_name();
+        bool anonymous = false;
+        std::string fun_name;
+
+        if (fun->has_name()) {
+            fun_name = fun->get_name();
+        } else {
+            fun_name = fun->get_hash();
+            anonymous = true;
+        }
 
         if (fun->has_parent()) {
             int parent_fun_id = fun->get_parent_id();
@@ -152,11 +157,14 @@ class FunctionTable {
             std::string parent_name =
                 infer_qualified_name_helper_(parent, env_tab);
 
-            if (parent_name == LAZR_NA_STRING) {
-                fun_name = LAZR_NA_STRING;
-            } else {
-                fun_name = parent_name + QUALIFIED_NAME_SEPARATOR + fun_name;
+            /* if parent is anonymous, then the function in consideration is
+             * also anonymous. But, if the parent is not anonymous, the function
+             * in consideration can still be anonymous.  */
+            if (parent->is_anonymous()) {
+                anonymous = true;
             }
+
+            fun_name = parent_name + QUALIFIED_NAME_SEPARATOR + fun_name;
         }
 
         else {
@@ -164,16 +172,19 @@ class FunctionTable {
 
             Environment* env_data = env_tab.lookup(fun_env_id);
 
+            std::string pack_name = "<NA>";
+
             if (env_data->has_name() && (env_data->get_type() == "namespace" ||
                                          env_data->get_type() == "package")) {
-                std::string pack_name = env_data->get_name();
-                fun_name = pack_name + QUALIFIED_NAME_SEPARATOR + fun_name;
+                pack_name = env_data->get_name();
             } else {
-                fun_name = LAZR_NA_STRING;
+                anonymous = true;
             }
+
+            fun_name = pack_name + QUALIFIED_NAME_SEPARATOR + fun_name;
         }
 
-        fun->set_qualified_name(fun_name);
+        fun->set_qualified_name(fun_name, anonymous);
 
         return fun_name;
     }

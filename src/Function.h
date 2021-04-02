@@ -13,6 +13,7 @@ class Function {
              const std::string& fun_def)
         : fun_id_(fun_id)
         , fun_name_(LAZR_NA_STRING)
+        , anonymous_(FALSE)
         , qual_name_(LAZR_NA_STRING)
         , parent_fun_id_(NA_INTEGER)
         , fun_env_id_(fun_env_id)
@@ -57,21 +58,31 @@ class Function {
         return qual_name_;
     }
 
-    void set_qualified_name(const std::string& qual_name) {
+    void set_qualified_name(const std::string& qual_name, bool anonymous) {
         qual_name_ = qual_name;
+        anonymous_ = anonymous;
     }
 
     bool has_qualified_name() const {
         return qual_name_ != LAZR_NA_STRING;
     }
 
+    const std::string& get_hash() const {
+        return fun_hash_;
+    }
+
     void call() {
         ++call_count_;
+    }
+
+    int is_anonymous() const {
+        return anonymous_;
     }
 
     void to_sexp(int index,
                  SEXP r_fun_id,
                  SEXP r_fun_name,
+                 SEXP r_anonymous,
                  SEXP r_qual_name,
                  SEXP r_parent_fun_id,
                  SEXP r_fun_env_id,
@@ -80,6 +91,7 @@ class Function {
                  SEXP r_fun_def) {
         SET_INTEGER_ELT(r_fun_id, index, fun_id_);
         SET_STRING_ELT(r_fun_name, index, make_char(fun_name_));
+        SET_LOGICAL_ELT(r_anonymous, index, anonymous_);
         SET_STRING_ELT(r_qual_name, index, make_char(qual_name_));
         SET_INTEGER_ELT(r_parent_fun_id, index, parent_fun_id_);
         SET_INTEGER_ELT(r_fun_env_id, index, fun_env_id_);
@@ -91,6 +103,7 @@ class Function {
   private:
     int fun_id_;
     std::string fun_name_;
+    bool anonymous_;
     std::string qual_name_;
     int parent_fun_id_;
     int fun_env_id_;
