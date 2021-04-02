@@ -12,6 +12,7 @@ class Argument {
              const std::string& arg_name,
              int formal_pos,
              int dot_pos,
+             int default_arg,
              int vararg,
              int missing,
              const std::string& arg_type,
@@ -25,8 +26,9 @@ class Argument {
         , arg_name_(arg_name)
         , formal_pos_(formal_pos)
         , dot_pos_(dot_pos)
-        , actual_pos_(NA_INTEGER)
         , force_pos_(NA_INTEGER)
+        , actual_pos_(NA_INTEGER)
+        , default_arg_(default_arg)
         , vararg_(vararg)
         , missing_(missing)
         , arg_type_(arg_type)
@@ -170,6 +172,7 @@ class Argument {
                  SEXP r_dot_pos,
                  SEXP r_force_pos,
                  SEXP r_actual_pos,
+                 SEXP r_default_arg,
                  SEXP r_vararg,
                  SEXP r_missing,
                  SEXP r_arg_type,
@@ -206,6 +209,7 @@ class Argument {
         SET_INTEGER_ELT(r_dot_pos, index, dot_pos_);
         SET_INTEGER_ELT(r_force_pos, index, force_pos_);
         SET_INTEGER_ELT(r_actual_pos, index, actual_pos_);
+        SET_LOGICAL_ELT(r_default_arg, index, default_arg_);
         SET_LOGICAL_ELT(r_vararg, index, vararg_);
         SET_LOGICAL_ELT(r_missing, index, missing_);
         SET_STRING_ELT(r_arg_type, index, make_char(arg_type_));
@@ -246,6 +250,7 @@ class Argument {
     int dot_pos_;
     int force_pos_;
     int actual_pos_;
+    int default_arg_;
     int vararg_;
     int missing_;
     std::string arg_type_;
