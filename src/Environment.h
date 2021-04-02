@@ -40,6 +40,10 @@ class Environment {
         return call_id_;
     }
 
+    void set_call_id(int call_id) {
+        call_id_ = call_id;
+    }
+
     void to_sexp(int position,
                  SEXP r_env_id,
                  SEXP r_env_type,

@@ -1234,6 +1234,14 @@ void value_finalize(instrumentr_tracer_t tracer,
             const char* env_type = instrumentr_environment_type_to_string(type);
             env->set_type(env_type);
 
+            if (type == INSTRUMENTR_ENVIRONMENT_TYPE_CALL) {
+                instrumentr_call_t call =
+                    instrumentr_environment_get_call(environment);
+                int call_id = instrumentr_call_get_id(call);
+
+                env -> set_call_id(call_id);
+            }
+
             const char* env_name =
                 instrumentr_environment_get_name(environment);
             env->set_name(env_name);

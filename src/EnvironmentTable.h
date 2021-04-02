@@ -20,12 +20,6 @@ class EnvironmentTable {
     Environment* insert(instrumentr_environment_t environment) {
         int env_id = instrumentr_environment_get_id(environment);
 
-        auto iter = table_.find(env_id);
-
-        if (iter != table_.end()) {
-            return iter->second;
-        }
-
         int call_id = NA_INTEGER;
 
         instrumentr_environment_type_t type =
@@ -35,6 +29,13 @@ class EnvironmentTable {
             instrumentr_call_t call =
                 instrumentr_environment_get_call(environment);
             call_id = instrumentr_call_get_id(call);
+        }
+
+        auto iter = table_.find(env_id);
+
+        if (iter != table_.end()) {
+            iter->second->set_call_id(call_id);
+            return iter->second;
         }
 
         Environment* env = new Environment(env_id, call_id);
