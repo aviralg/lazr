@@ -17,8 +17,15 @@ void mark_promises(int ref_call_id,
                    const std::string& ref_type,
                    ArgumentTable& arg_tab,
                    ArgumentReflectionTable& ref_tab,
-                   instrumentr_call_stack_t call_stack) {
+                   instrumentr_call_stack_t call_stack,
+                   Backtrace& backtrace) {
     bool transitive = false;
+
+    int source_fun_id = NA_INTEGER;
+    int source_call_id = NA_INTEGER;
+    int source_arg_id = NA_INTEGER;
+    int source_formal_pos = NA_INTEGER;
+
     for (int i = 1; i < instrumentr_call_stack_get_size(call_stack); ++i) {
         instrumentr_frame_t frame =
             instrumentr_call_stack_peek_frame(call_stack, i);
@@ -51,10 +58,22 @@ void mark_promises(int ref_call_id,
             ref_tab.insert(ref_call_id,
                            ref_type,
                            transitive,
+                           source_fun_id,
+                           source_call_id,
+                           source_arg_id,
+                           source_formal_pos,
                            fun_id,
                            call_id,
                            arg_id,
-                           formal_pos);
+                           formal_pos,
+                           backtrace.to_string());
+
+            if (!transitive) {
+                source_fun_id = arg->get_fun_id();
+                source_call_id = arg->get_call_id();
+                source_arg_id = promise_id;
+                source_formal_pos = arg->get_formal_pos();
+            }
         }
 
         transitive = true;
@@ -144,6 +163,35 @@ void mark_escaped_environment_call(int ref_call_id,
     }
 }
 
+bool has_minus_one_argument(instrumentr_call_t call) {
+    instrumentr_value_t arguments = instrumentr_call_get_arguments(call);
+    SEXP r_arguments = instrumentr_value_get_sexp(arguments);
+    SEXP r_argument = CAR(r_arguments);
+    bool valid = false;
+
+    if (TYPEOF(r_argument) == REALSXP) {
+        for (int i = 0; i < Rf_length(r_argument); ++i) {
+            double pos = REAL_ELT(r_argument, i);
+            if (pos == -1) {
+                valid = true;
+                break;
+            }
+        }
+    }
+
+    else if (TYPEOF(r_argument) == INTSXP) {
+        for (int i = 0; i < Rf_length(r_argument); ++i) {
+            int pos = INTEGER_ELT(r_argument, i);
+            if (pos == -1) {
+                valid = true;
+                break;
+            }
+        }
+    }
+
+    return valid;
+}
+
 void builtin_call_exit_callback(instrumentr_tracer_t tracer,
                                 instrumentr_callback_t callback,
                                 instrumentr_state_t state,
@@ -155,13 +203,11 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
 
     /* NOTE: sys.status calls 3 of these functions so it is not added to the
      * list. */
-    if (ref_type != "sys.parent" && ref_type != "sys.call" &&
-        ref_type != "sys.frame" && ref_type != "sys.nframe" &&
-        ref_type != "sys.calls" && ref_type != "sys.frames" &&
-        ref_type != "sys.parents" && ref_type != "sys.function" &&
-        ref_type != "parent.frame" && ref_type != "sys.on.exit" &&
-        ref_type != "as.environment" && ref_type != "pos.to.env" &&
-        ref_type != "environment") {
+    if (ref_type != "as.environment" && ref_type != "pos.to.env") {
+        return;
+    }
+
+    if (!has_minus_one_argument(call)) {
         return;
     }
 
@@ -171,11 +217,13 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
     CallTable& call_tab = tracing_state.get_call_table();
     ArgumentReflectionTable& arg_ref_tab = tracing_state.get_arg_ref_tab();
     CallReflectionTable& call_ref_tab = tracing_state.get_call_ref_tab();
+    Backtrace& backtrace = tracing_state.get_backtrace();
 
     instrumentr_call_stack_t call_stack =
         instrumentr_state_get_call_stack(state);
 
-    mark_promises(ref_call_id, ref_type, arg_tab, arg_ref_tab, call_stack);
+    mark_promises(
+        ref_call_id, ref_type, arg_tab, arg_ref_tab, call_stack, backtrace);
 
     if (!instrumentr_call_has_result(call)) {
         return;
@@ -183,9 +231,7 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
 
     /* NOTE: sys.status calls 3 of these functions so it is not added to the
      * list. */
-    if (ref_type == "sys.frame" || ref_type == "parent.frame" ||
-        ref_type == "as.environment" || ref_type == "pos.to.env" ||
-        ref_type == "environment") {
+    if (ref_type == "as.environment" || ref_type == "pos.to.env") {
         instrumentr_value_t result = instrumentr_call_get_result(call);
 
         if (!instrumentr_value_is_environment(result)) {
@@ -204,7 +250,8 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
                                       environment);
     }
 
-    /* this means that environments of all functions on the stack escape */
+    /* NOTE: this case does not get affected by argument's evaluation position.
+      this means that environments of all functions on the stack escape
     else if (ref_type == "sys.frames") {
         mark_escaped_environment_call(ref_call_id,
                                       ref_type,
@@ -214,6 +261,7 @@ void builtin_call_exit_callback(instrumentr_tracer_t tracer,
                                       call_stack,
                                       NULL);
     }
+    */
 }
 
 void process_arguments(ArgumentTable& argument_table,
