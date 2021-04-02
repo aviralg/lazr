@@ -1239,12 +1239,82 @@ void value_finalize(instrumentr_tracer_t tracer,
                     instrumentr_environment_get_call(environment);
                 int call_id = instrumentr_call_get_id(call);
 
-                env -> set_call_id(call_id);
+                env->set_call_id(call_id);
             }
 
             const char* env_name =
                 instrumentr_environment_get_name(environment);
             env->set_name(env_name);
+        }
+    }
+}
+
+void trace_error(instrumentr_tracer_t tracer,
+                 instrumentr_callback_t callback,
+                 instrumentr_state_t state,
+                 instrumentr_application_t application,
+                 instrumentr_value_t call_expr) {
+    TracingState& tracing_state = TracingState::lookup(state);
+    ArgumentTable& arg_tab = tracing_state.get_argument_table();
+    EffectsTable& effects_tab = tracing_state.get_effects_table();
+    Backtrace& backtrace = tracing_state.get_backtrace();
+
+    instrumentr_call_stack_t call_stack =
+        instrumentr_state_get_call_stack(state);
+
+    bool transitive = false;
+    int source_fun_id = NA_INTEGER;
+    int source_call_id = NA_INTEGER;
+    int source_arg_id = NA_INTEGER;
+    int source_formal_pos = NA_INTEGER;
+
+    for (int i = 0; i < instrumentr_call_stack_get_size(call_stack); ++i) {
+        instrumentr_frame_t frame =
+            instrumentr_call_stack_peek_frame(call_stack, i);
+
+        if (!instrumentr_frame_is_promise(frame)) {
+            continue;
+        }
+
+        instrumentr_promise_t promise = instrumentr_frame_as_promise(frame);
+
+        if (instrumentr_promise_get_type(promise) !=
+            INSTRUMENTR_PROMISE_TYPE_ARGUMENT) {
+            continue;
+        }
+
+        int promise_id = instrumentr_promise_get_id(promise);
+
+        const std::vector<Argument*>& args = arg_tab.lookup(promise_id);
+
+        Argument* arg = args.back();
+
+        arg->side_effect('E', transitive);
+
+        int arg_id = arg->get_id();
+        int fun_id = arg->get_fun_id();
+        int call_id = arg->get_call_id();
+        int formal_pos = arg->get_formal_pos();
+
+        effects_tab.insert('E',
+                           LAZR_NA_STRING,
+                           transitive,
+                           NA_INTEGER,
+                           source_fun_id,
+                           source_call_id,
+                           source_arg_id,
+                           source_formal_pos,
+                           fun_id,
+                           call_id,
+                           arg_id,
+                           formal_pos,
+                           backtrace.to_string());
+
+        if (!transitive) {
+            source_fun_id = arg->get_fun_id();
+            source_call_id = arg->get_call_id();
+            source_arg_id = promise_id;
+            source_formal_pos = arg->get_formal_pos();
         }
     }
 }

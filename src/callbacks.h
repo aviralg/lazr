@@ -107,4 +107,10 @@ void value_finalize(instrumentr_tracer_t tracer,
                     instrumentr_application_t application,
                     instrumentr_value_t value);
 
+void trace_error(instrumentr_tracer_t tracer,
+                 instrumentr_callback_t callback,
+                 instrumentr_state_t state,
+                 instrumentr_application_t application,
+                 instrumentr_value_t call_expr);
+
 #endif /* LAZR_CALLBACKS_H  */
