@@ -2,7 +2,7 @@ R = R
 
 .PHONY: all build check document test
 
-all: document build check
+all: document build check install
 
 build: document
 	$(R) CMD build .
