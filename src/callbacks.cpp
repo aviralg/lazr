@@ -414,6 +414,23 @@ void closure_call_exit_callback(instrumentr_tracer_t tracer,
     backtrace.pop();
 }
 
+std::string get_native_function_name(instrumentr_value_t argument) {
+    std::string fun_name = "NA";
+
+    if (instrumentr_value_is_list(argument)) {
+        argument = instrumentr_list_get_element(
+            instrumentr_value_as_list(argument), 0);
+    }
+
+    if (instrumentr_value_is_character(argument)) {
+        fun_name =
+            instrumentr_char_get_element(instrumentr_character_get_element(
+                instrumentr_value_as_character(argument), 0));
+    }
+
+    return fun_name;
+}
+
 void compute_meta_depth(instrumentr_state_t state,
                         const std::string& meta_type,
                         MetaprogrammingTable& meta_table,
@@ -422,6 +439,8 @@ void compute_meta_depth(instrumentr_state_t state,
     int meta_depth = 0;
     int sink_fun_id = NA_INTEGER;
     int sink_call_id = NA_INTEGER;
+
+    std::string intervening_fun(LAZR_NA_STRING);
 
     instrumentr_call_stack_t call_stack =
         instrumentr_state_get_call_stack(state);
@@ -439,6 +458,31 @@ void compute_meta_depth(instrumentr_state_t state,
 
         instrumentr_value_t function = instrumentr_call_get_function(call);
 
+        if (intervening_fun == LAZR_NA_STRING &&
+            instrumentr_value_is_special(function)) {
+            intervening_fun = instrumentr_special_get_name(
+                instrumentr_value_as_special(function));
+        }
+
+        if (intervening_fun == LAZR_NA_STRING &&
+            instrumentr_value_is_builtin(function)) {
+            std::string name = intervening_fun = instrumentr_builtin_get_name(
+                instrumentr_value_as_builtin(function));
+
+            if (name == ".C" || name == ".Fortran" || name == ".External" ||
+                name == ".External2" || name == ".Call" ||
+                name == ".External.graphics" || name == ".Call.graphics") {
+                instrumentr_value_t args = instrumentr_call_get_arguments(call);
+
+                instrumentr_value_t first_arg =
+                    instrumentr_pairlist_get_element(
+                        instrumentr_value_as_pairlist(args), 0);
+
+                intervening_fun +=
+                    "(" + get_native_function_name(first_arg) + ")";
+            }
+        }
+
         if (!instrumentr_value_is_closure(function)) {
             continue;
         }
@@ -452,6 +496,7 @@ void compute_meta_depth(instrumentr_state_t state,
 
         if (current_call_id == call_id) {
             meta_table.insert(meta_type,
+                              intervening_fun,
                               argument->get_fun_id(),
                               argument->get_call_id(),
                               argument->get_id(),
@@ -815,8 +860,8 @@ void process_reads(instrumentr_state_t state,
     }
 
     Environment* env = environment_table.insert(environment);
-    int t2 = instrumentr_environment_get_last_write_time(environment);
-    int env_birth_time = instrumentr_environment_get_birth_time(environment);
+
+    int t_env_birth = instrumentr_environment_get_birth_time(environment);
 
     int env_id = instrumentr_environment_get_id(environment);
 
@@ -847,22 +892,25 @@ void process_reads(instrumentr_state_t state,
 
         int promise_id = instrumentr_promise_get_id(promise);
 
-        int t1 = instrumentr_promise_get_birth_time(promise);
-        int t3 = instrumentr_promise_get_force_entry_time(promise);
+        int t_prom_birth = instrumentr_promise_get_birth_time(promise);
+        int t_prom_entry = instrumentr_promise_get_force_entry_time(promise);
 
         /* if environment is born inside this promise's evaluation, then
            we stop the analysis here because the effect is contained inside
            this promise. */
-        if (env_birth_time > t3) {
-            return;
+        if (t_env_birth > t_prom_entry) {
+            break;
         }
+
+        bool modified =
+            env->is_variable_modified(varname, t_prom_birth, t_prom_entry);
 
         // This means the environment has been modified after the promise is
         // created but before it is forced and while forcing, this promise is
         // reading from the environment. Since this read can potentially be from
         // the modified location, we should mark it as non local and make the
         // argument lazy.
-        if (!transitive && (t2 > t1 && t2 < t3)) {
+        if (!transitive && modified) {
             const std::vector<Argument*>& args =
                 argument_table.lookup(promise_id);
 
@@ -900,7 +948,7 @@ void process_reads(instrumentr_state_t state,
          * effect has already been found and handled. All other promises on the
          * stack are transitively responsible for forcing it and have to be made
          * lazy. */
-        if (transitive) {
+        if (transitive && modified) {
             const std::vector<Argument*>& args =
                 argument_table.lookup(promise_id);
 
@@ -930,6 +978,8 @@ void process_reads(instrumentr_state_t state,
             continue;
         }
     }
+
+    env->add_read_time(varname, instrumentr_state_get_time(state));
 }
 
 void variable_lookup(instrumentr_tracer_t tracer,
@@ -1010,7 +1060,7 @@ void process_writes(instrumentr_state_t state,
 
     Environment* env = environment_table.insert(environment);
 
-    int t2 = instrumentr_environment_get_birth_time(environment);
+    int t_env_birth = instrumentr_environment_get_birth_time(environment);
     int env_id = instrumentr_environment_get_id(environment);
 
     instrumentr_call_stack_t call_stack =
@@ -1039,17 +1089,23 @@ void process_writes(instrumentr_state_t state,
         }
 
         int promise_id = instrumentr_promise_get_id(promise);
-        int t1 = instrumentr_promise_get_force_entry_time(promise);
+
+        int t_prom_birth = instrumentr_promise_get_birth_time(promise);
+        int t_prom_entry = instrumentr_promise_get_force_entry_time(promise);
 
         /* if environment is born inside the the currently forced promise, then
          * effect is contained inside the promise and we can exit */
-        if (t2 > t1) {
-            return;
+        if (t_env_birth > t_prom_entry) {
+            break;
         }
 
         // if promise is forced after the environment it is writing to is
         // born then the write is a non-local side effect
-        if (!transitive) {
+
+        bool touched =
+            env->is_variable_touched(varname, t_prom_birth, t_prom_entry);
+
+        if (!transitive && touched) {
             const std::vector<Argument*>& args =
                 argument_table.lookup(promise_id);
 
@@ -1087,7 +1143,7 @@ void process_writes(instrumentr_state_t state,
          * the effect has already been found and handled. All other promises
          * on the stack satisfying this condition are transitively
          * responsible for forcing it and have to be made lazy. */
-        if (transitive) {
+        if (transitive && touched) {
             const std::vector<Argument*>& args =
                 argument_table.lookup(promise_id);
 
@@ -1117,6 +1173,8 @@ void process_writes(instrumentr_state_t state,
             continue;
         }
     }
+
+    env->add_write_time(varname, instrumentr_state_get_time(state));
 }
 
 void variable_assign(instrumentr_tracer_t tracer,
@@ -1245,6 +1303,8 @@ void value_finalize(instrumentr_tracer_t tracer,
             const char* env_name =
                 instrumentr_environment_get_name(environment);
             env->set_name(env_name);
+
+            env->clear_variable_times();
         }
     }
 }

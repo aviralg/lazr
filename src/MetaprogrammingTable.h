@@ -14,6 +14,7 @@ class MetaprogrammingTable {
     }
 
     void insert(const std::string& meta_type,
+                const std::string& native_fun,
                 int source_fun_id,
                 int source_call_id,
                 int source_arg_id,
@@ -36,6 +37,7 @@ class MetaprogrammingTable {
             }
         }
         meta_type_.push_back(meta_type);
+        native_fun_.push_back(native_fun);
         source_fun_id_.push_back(source_fun_id);
         source_call_id_.push_back(source_call_id);
         source_arg_id_.push_back(source_arg_id);
@@ -49,6 +51,7 @@ class MetaprogrammingTable {
         int size = meta_type_.size();
 
         SEXP r_meta_type = PROTECT(allocVector(STRSXP, size));
+        SEXP r_native_fun = PROTECT(allocVector(STRSXP, size));
         SEXP r_source_fun_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_source_call_id = PROTECT(allocVector(INTSXP, size));
         SEXP r_source_arg_id = PROTECT(allocVector(INTSXP, size));
@@ -59,6 +62,7 @@ class MetaprogrammingTable {
 
         for (int index = 0; index < size; ++index) {
             SET_STRING_ELT(r_meta_type, index, make_char(meta_type_[index]));
+            SET_STRING_ELT(r_native_fun, index, make_char(native_fun_[index]));
             SET_INTEGER_ELT(r_source_fun_id, index, source_fun_id_[index]);
             SET_INTEGER_ELT(r_source_call_id, index, source_call_id_[index]);
             SET_INTEGER_ELT(r_source_arg_id, index, source_arg_id_[index]);
@@ -70,6 +74,7 @@ class MetaprogrammingTable {
         }
 
         std::vector<SEXP> columns({r_meta_type,
+                                   r_native_fun,
                                    r_source_fun_id,
                                    r_source_call_id,
                                    r_source_arg_id,
@@ -79,6 +84,7 @@ class MetaprogrammingTable {
                                    r_depth});
 
         std::vector<std::string> names({"meta_type",
+                                        "native_fun",
                                         "source_fun_id",
                                         "source_call_id",
                                         "source_arg_id",
@@ -89,13 +95,14 @@ class MetaprogrammingTable {
 
         SEXP df = create_data_frame(names, columns);
 
-        UNPROTECT(8);
+        UNPROTECT(9);
 
         return df;
     }
 
   private:
     std::vector<std::string> meta_type_;
+    std::vector<std::string> native_fun_;
     std::vector<int> source_fun_id_;
     std::vector<int> source_call_id_;
     std::vector<int> source_arg_id_;
